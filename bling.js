@@ -77,7 +77,7 @@ async function montarCard(p) {
         sizes: [],
         variacoes: [],
         link: prod.urlAmigavel ? `https://lleva.com.br/produtos/${prod.urlAmigavel}/` : '',
-        image: prod.imageThumbnail || prod.imagemURL || null,
+        image: prod.midia?.imagens?.internas?.[0]?.linkMiniatura || prod.midia?.imagens?.internas?.[0]?.link || null,
         price: parseFloat(prod.preco) || 0,
         estoque
       };
@@ -103,7 +103,7 @@ async function montarCard(p) {
       sizes: vars.map(v => v.tamanho),
       variacoes: vars,
       link: prod.urlAmigavel ? `https://lleva.com.br/produtos/${prod.urlAmigavel}/` : '',
-      image: prod.imageThumbnail || prod.imagemURL || null,
+      image: prod.midia?.imagens?.internas?.[0]?.linkMiniatura || prod.midia?.imagens?.internas?.[0]?.link || null,
       price: parseFloat(prod.preco) || 0,
       estoque: vars.reduce((s, v) => s + v.estoque, 0)
     };
