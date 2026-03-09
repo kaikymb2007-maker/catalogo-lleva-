@@ -347,26 +347,28 @@ input,button,textarea{font-family:var(--fonte)}
 
 <script>
 // ══════════════════════════════════════════
-// INTEGRAÇÃO BLING API V3
-// Token expira em algumas horas — gere novo pelo Postman se parar de funcionar
+// INTEGRAÇÃO BLING — via Netlify Function (sem CORS)
 // ══════════════════════════════════════════
 
-const BLING_TOKEN = '037196dbaa805e402a221f508970d700ead6ac03';
-const BLING_BASE  = 'https://www.bling.com.br/Api/v3';
-const QTD_MINIMA  = 18;
+const PROXY = '/.netlify/functions/bling';
+const QTD_MINIMA = 18;
 
-// Busca produtos ativos com estoque > 0 e suas variações
+async function blingFetch(path, params = {}) {
+  const query = new URLSearchParams({ path, ...params }).toString();
+  const res = await fetch(`${PROXY}?${query}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 async function carregarProdutosBling() {
   mostrarLoadingCatalogo(true);
   try {
-    // 1. Buscar todos os produtos ativos
     const produtos = await fetchTodosProdutos();
     if (!produtos.length) {
       mostrarErroCatalogo('Nenhum produto ativo encontrado no Bling.');
       return;
     }
 
-    // 2. Para cada produto, buscar variações com estoque
     const cards = [];
     for (const p of produtos) {
       const card = await montarCard(p);
@@ -378,15 +380,15 @@ async function carregarProdutosBling() {
       return;
     }
 
-    // 3. Substituir array de produtos e re-renderizar
     window.AP = cards;
     document.getElementById('pCount').textContent = cards.length + ' produto' + (cards.length !== 1 ? 's' : '');
+    document.getElementById('wQtd').textContent = cards.length;
     render();
 
   } catch (e) {
     console.error('Erro Bling:', e);
-    mostrarErroCatalogo('Erro ao conectar com o Bling. Usando produtos do catálogo fixo.');
-    render(); // fallback para produtos fixos
+    mostrarErroCatalogo('Erro ao conectar com o Bling. Usando catálogo fixo.');
+    render();
   } finally {
     mostrarLoadingCatalogo(false);
   }
@@ -396,11 +398,7 @@ async function fetchTodosProdutos() {
   let pagina = 1;
   let todos = [];
   while (true) {
-    const res = await fetch(`${BLING_BASE}/produtos?situacao=A&limite=100&pagina=${pagina}`, {
-      headers: { 'Authorization': `Bearer ${BLING_TOKEN}`, 'Accept': 'application/json' }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const data = await blingFetch('/produtos', { situacao: 'A', limite: 100, pagina });
     const items = data.data || [];
     todos = todos.concat(items);
     if (items.length < 100) break;
@@ -411,18 +409,11 @@ async function fetchTodosProdutos() {
 
 async function montarCard(p) {
   try {
-    // Buscar detalhes do produto (com variações e estoque)
-    const res = await fetch(`${BLING_BASE}/produtos/${p.id}`, {
-      headers: { 'Authorization': `Bearer ${BLING_TOKEN}`, 'Accept': 'application/json' }
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await blingFetch(`/produtos/${p.id}`);
     const prod = data.data;
 
-    // Determinar categoria
-    const cat = detectarCategoria(prod.nome || prod.descricao || '');
+    const cat = detectarCategoria(prod.nome || '');
 
-    // Sem variações — produto simples
     if (!prod.variacoes || !prod.variacoes.length) {
       const estoque = prod.estoque?.saldoVirtualTotal || 0;
       if (estoque <= 0) return null;
@@ -434,13 +425,12 @@ async function montarCard(p) {
         sizes: [],
         variacoes: [],
         link: prod.urlAmigavel ? `https://lleva.com.br/produtos/${prod.urlAmigavel}/` : '',
-        image: prod.imagemURL || null,
+        image: prod.imageThumbnail || prod.imagemURL || null,
         price: parseFloat(prod.preco) || 0,
-        estoque: estoque
+        estoque
       };
     }
 
-    // Com variações — filtrar só com estoque > 0
     const vars = prod.variacoes
       .filter(v => (v.estoque?.saldoVirtualTotal || 0) > 0)
       .map(v => ({
@@ -461,28 +451,28 @@ async function montarCard(p) {
       sizes: vars.map(v => v.tamanho),
       variacoes: vars,
       link: prod.urlAmigavel ? `https://lleva.com.br/produtos/${prod.urlAmigavel}/` : '',
-      image: prod.imagemURL || null,
+      image: prod.imageThumbnail || prod.imagemURL || null,
       price: parseFloat(prod.preco) || 0,
       estoque: vars.reduce((s, v) => s + v.estoque, 0)
     };
 
   } catch (e) {
-    console.warn('Erro ao carregar produto', p.id, e);
+    console.warn('Erro produto', p.id, e);
     return null;
   }
 }
 
 function extrairTamanho(nome) {
-  const m = nome.match(/\b(3[68]|4[02468]|50|PP|P|M|G{1,3}|XG|XL|XXL)\b/i);
+  const m = nome.match(/\b(3[68]|4[02468]|50|PP|P\b|M\b|G{1,3}|XG|XL|XXL)\b/i);
   return m ? m[1].toUpperCase() : '';
 }
 
 function detectarCategoria(nome) {
   const n = nome.toLowerCase();
-  if (n.includes('bermuda'))                          return 'bermuda';
+  if (n.includes('bermuda'))                              return 'bermuda';
   if (n.includes('alfaiataria') || n.includes('social')) return 'alfaiataria';
-  if (n.includes('skinny') || n.includes('slim'))    return 'skinny';
-  if (n.includes('reta') || n.includes('regular'))   return 'reta';
+  if (n.includes('skinny') || n.includes('slim'))        return 'skinny';
+  if (n.includes('reta') || n.includes('regular'))       return 'reta';
   return 'skinny';
 }
 
@@ -507,6 +497,7 @@ function mostrarErroCatalogo(msg) {
     setTimeout(() => { el.style.display = 'none'; render(); }, 3000);
   }
 }
+
 
 
 // ── DADOS FIXOS (fallback se Bling falhar) ──
