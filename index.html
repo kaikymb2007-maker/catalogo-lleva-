@@ -218,7 +218,7 @@ input,button,textarea{font-family:var(--fonte)}
     </div>
     <div class="auth-loader" id="loginLoader"><div class="ring"></div><p class="ring-txt">Verificando...</p></div>
     <button class="btn-full" id="btnVerificar" onclick="verificarCNPJ()">VERIFICAR CNPJ →</button>
-    <button class="btn-full verde btn-hidden" id="btnAvancar" onclick="irParaCadastro()">CONTINUAR →</button>
+    
     <p class="auth-note"><strong>🔒 Acesso restrito</strong> — exclusivo para compradores atacado.</p>
   </div>
 </div>
@@ -573,7 +573,7 @@ function validaCNPJ(c){
   for(let i=t;i>=1;i--){s+=parseInt(d.charAt(t-i))*p--;if(p<2)p=9;}
   r=s%11<2?0:11-s%11;return r===parseInt(v.charAt(1));
 }
-function verificarCNPJ(){
+async function verificarCNPJ(){
   const raw=document.getElementById('cnpjInput').value;
   const nums=raw.replace(/\D/g,'');
   document.getElementById('loginErr').classList.remove('show');
@@ -581,13 +581,50 @@ function verificarCNPJ(){
   if(!validaCNPJ(nums)){document.getElementById('loginErr').innerHTML='CNPJ inválido. Verifique os números.';document.getElementById('loginErr').classList.add('show');return;}
   document.getElementById('btnVerificar').classList.add('btn-hidden');
   document.getElementById('loginLoader').style.display='block';
-  setTimeout(()=>{
+  document.getElementById('loginLoader').querySelector('.ring-txt').textContent='Buscando cadastro...';
+  try {
+    // Busca contatos PJ no Bling filtrando pelo CNPJ
+    const cnpjLimpo = nums;
+    let encontrado = null;
+    let pagina = 1;
+    while(!encontrado) {
+      const res = await fetch(`/.netlify/functions/bling?path=/contatos&tipoPessoa=J&pagina=${pagina}&limite=100`);
+      const data = await res.json();
+      const contatos = data.data || [];
+      if(!contatos.length) break;
+      const match = contatos.find(c => {
+        const doc = (c.numeroDocumento || c.cpfCnpj || '').replace(/\D/g,'');
+        return doc === cnpjLimpo;
+      });
+      if(match) { encontrado = match; break; }
+      if(contatos.length < 100) break;
+      pagina++;
+    }
     document.getElementById('loginLoader').style.display='none';
-    document.getElementById('loginOk').innerHTML='CNPJ válido: <strong>'+raw+'</strong>';
-    document.getElementById('loginOk').classList.add('show');
-    document.getElementById('btnAvancar').classList.remove('btn-hidden');
-    comprador.cnpj=raw;
-  },700);
+    if(!encontrado) {
+      document.getElementById('loginErr').innerHTML='CNPJ não encontrado. Entre em contato com seu vendedor.';
+      document.getElementById('loginErr').classList.add('show');
+      document.getElementById('btnVerificar').classList.remove('btn-hidden');
+      return;
+    }
+    // Preenche dados do comprador com info do Bling
+    const nome = encontrado.nome || encontrado.razaoSocial || encontrado.nomeFantasia || 'Cliente';
+    const loja = encontrado.nomeFantasia || encontrado.razaoSocial || nome;
+    const whats = (encontrado.telefone||encontrado.celular||'').replace(/\D/g,'');
+    const email = encontrado.email || '';
+    const cidade = encontrado.endereco?.municipio || '';
+    const estado = encontrado.endereco?.uf || '';
+    comprador = { cnpj: raw, nome, loja, whats, email, cidade, estado };
+    document.getElementById('wNome').textContent = nome.split(' ')[0];
+    document.getElementById('wLoja').textContent = loja + (cidade ? ' · '+cidade+'/'+estado : '');
+    showScreen(null);
+    setTimeout(()=>{document.getElementById('screenBemVindo').classList.add('ativo');iniciarContagem();},300);
+  } catch(e) {
+    document.getElementById('loginLoader').style.display='none';
+    document.getElementById('loginErr').innerHTML='Erro ao verificar CNPJ. Tente novamente.';
+    document.getElementById('loginErr').classList.add('show');
+    document.getElementById('btnVerificar').classList.remove('btn-hidden');
+  }
 }
 function irParaCadastro(){showScreen('screenCadastro')}
 function voltarLogin(){showScreen('screenLogin')}

@@ -1,6 +1,3 @@
-// Netlify Function — proxy seguro para API Bling
-// O token fica na variável de ambiente BLING_TOKEN (nunca exposto no frontend)
-
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
