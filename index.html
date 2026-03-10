@@ -725,7 +725,7 @@ async function verificarCNPJ(){
     const email = encontrado.email || '';
     const cidade = encontrado.endereco?.municipio || '';
     const estado = encontrado.endereco?.uf || '';
-    comprador = { cnpj: raw, nome, loja, whats, email, cidade, estado };
+    comprador = { cnpj: raw, nome, loja, whats, email, cidade, estado, blingId: encontrado.id || 0 };
     document.getElementById('wNome').textContent = nome.split(' ')[0];
     document.getElementById('wLoja').textContent = loja + (cidade ? ' · '+cidade+'/'+estado : '');
     showScreen(null);
@@ -900,7 +900,10 @@ async function enviar(){
     // Montar itens do pedido — um item por tamanho
     const itens = [];
     cart.forEach(c => {
+      const prod = window.AP.find(p => p.id == c.id);
       Object.entries(c.qtds).forEach(([tam, qty]) => {
+        // Encontrar a variação pelo tamanho para pegar o ID do produto filho
+        const variacao = prod?.variacoes?.find(v => v.tamanho === tam);
         itens.push({
           codigo: c.ref + '-' + tam,
           nome: c.name + ' TAM:' + tam,
@@ -912,8 +915,9 @@ async function enviar(){
     const total = cart.reduce((s,c) => s + c.tot * c.unit, 0);
     const obs = document.getElementById('bNotes').value;
     const nomeCliente = (comprador.nome || '') + ' · ' + (comprador.loja || '') + ' · CNPJ: ' + (comprador.cnpj || '');
+    const contatoId = comprador.blingId || 0;
 
-    const pedidoId = await criarPedidoBling({ itens, total, observacoes: obs, nomeCliente });
+    const pedidoId = await criarPedidoBling({ itens, total, observacoes: obs, nomeCliente, contatoId });
     const ref = pedidoId ? 'Bling #' + pedidoId : 'LD-' + Date.now().toString().slice(-6);
 
     document.getElementById('modalRef').textContent = 'Nº do pedido: ' + ref;
