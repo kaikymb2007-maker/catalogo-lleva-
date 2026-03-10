@@ -968,26 +968,10 @@ function fecharVendedores(e){
 
 async function criarPedidoBling(dadosPedido) {
   try {
-    const itens = dadosPedido.itens.map(item => ({
-      codigo: item.codigo,
-      descricao: item.nome,
-      quantidade: item.quantidade,
-      valor: item.preco
-    }));
-    const body = {
-      numero: 0,
-      data: new Date().toISOString().split('T')[0],
-      dataSaida: new Date().toISOString().split('T')[0],
-      totalProdutos: dadosPedido.total,
-      totalVenda: dadosPedido.total,
-      observacoes: dadosPedido.observacoes || '',
-      contato: { nome: dadosPedido.nomeCliente },
-      itens
-    };
     const res = await fetch('/api/bling-pedido', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(dadosPedido)
     });
     const data = await res.json();
     return data?.data?.id || null;
