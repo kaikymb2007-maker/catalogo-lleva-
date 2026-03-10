@@ -190,6 +190,33 @@ input,button,textarea{font-family:var(--fonte)}
   .welcome-stats{gap:1.5rem}.cat-banner-steps{flex-direction:column}
   .cbs{border-right:none;border-bottom:1px solid var(--cinza-borda)}
 }
+
+@media(max-width:640px){
+  .p-grid{grid-template-columns:1fr;gap:0}
+  .p-card{display:grid;grid-template-columns:140px 1fr;border-bottom:1px solid var(--cinza-borda)}
+  .p-img{aspect-ratio:3/4;height:100%;min-height:180px}
+  .p-body{padding:.75rem;gap:.4rem}
+  .p-name{font-size:10px}
+  .p-price-lbl{font-size:9px}
+  .sz-table{display:none}
+  .sz-mobile{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.5rem}
+  .sz-mobile-btn{border:1px solid var(--cinza-borda);background:var(--branco);padding:.3rem .5rem;font-size:10px;font-weight:700;cursor:pointer;transition:all .15s;min-width:36px;text-align:center;font-family:var(--fonte)}
+  .sz-mobile-btn.sel{background:var(--preto);color:var(--branco);border-color:var(--preto)}
+  .sz-mobile-qty{display:none;align-items:center;gap:.3rem;margin-top:.4rem}
+  .sz-mobile-qty.show{display:flex}
+  .sz-mobile-qty-lbl{font-size:9px;font-weight:700;letter-spacing:1px;color:var(--cinza-texto);white-space:nowrap}
+  .sz-mobile-qty input{width:50px;border:1px solid var(--cinza-borda);text-align:center;font-family:var(--fonte);font-size:13px;font-weight:700;padding:.25rem;outline:none}
+  .sz-total-row{margin-top:.4rem;padding-top:.4rem}
+  .sz-min-warn{font-size:8px}
+  .p-add{font-size:8px;padding:.55rem;margin-top:.4rem}
+  .p-site-link{font-size:8px;padding:.18rem .4rem}
+  .p-cat-tag{font-size:8px;padding:.2rem .5rem}
+  .p-ref{font-size:9px}
+}
+@media(min-width:641px){
+  .sz-mobile{display:none}
+  .sz-mobile-qty{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -768,6 +795,8 @@ function render(){
       <td class="sz-lbl">${v.tamanho||v}</td>
       <td><input class="sz-qty" type="number" id="sq-${p.id}-${v.tamanho||v}" value="0" min="0" step="1" oninput="updSzTotal(${p.id})" placeholder="0" /></td>
     </tr>`).join('');
+    // Botões mobile por tamanho
+    const szBtns=sizes.map(v=>`<button class="sz-mobile-btn" onclick="selSzMobile(${p.id},'${v.tamanho||v}',this)">${v.tamanho||v}</button>`).join('');
     return `<div class="p-card" style="animation-delay:${Math.min(i,15)*0.03}s">
       <div class="p-img">${imgTag}<div class="p-img-grad"></div>
         <span class="p-cat-tag ${CV[p.category]||''}">${CT[p.category]||p.category}</span>
@@ -780,6 +809,12 @@ function render(){
           <thead><tr><th>Tam</th><th>Qtd</th></tr></thead>
           <tbody>${szRows}</tbody>
         </table>
+        <div class="sz-mobile">${szBtns}</div>
+        <div class="sz-mobile-qty" id="sq-mob-${p.id}">
+          <span class="sz-mobile-qty-lbl" id="sq-mob-lbl-${p.id}">Tam —</span>
+          <input type="number" id="sq-mob-inp-${p.id}" value="0" min="0" step="1" placeholder="0" oninput="updSzMobile(${p.id})" style="width:55px;border:1px solid var(--cinza-borda);text-align:center;font-family:var(--fonte);font-size:14px;font-weight:700;padding:.3rem;outline:none" />
+          <span style="font-size:9px;color:var(--cinza-texto)">un</span>
+        </div>
         <div class="sz-total-row">
           <span class="sz-total-lbl">Total: <span id="sq-tot-${p.id}">0</span> un</span>
           <span class="sz-total-val" id="sq-val-${p.id}">R$ 0,00</span>
@@ -850,6 +885,32 @@ function enviar(){
   },900);
 }
 function fecharModal(){document.getElementById('modalBg').classList.remove('on')}
+
+let szMobileAtual = {}; // {prodId: tamanho selecionado}
+
+function selSzMobile(id, tam, btn) {
+  // Desselecionar outros botões do mesmo produto
+  const card = btn.closest('.p-card');
+  card.querySelectorAll('.sz-mobile-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  szMobileAtual[id] = tam;
+  // Mostrar campo de quantidade
+  const qtyDiv = document.getElementById('sq-mob-'+id);
+  const lbl = document.getElementById('sq-mob-lbl-'+id);
+  qtyDiv.classList.add('show');
+  lbl.textContent = 'Tam '+tam+':';
+  document.getElementById('sq-mob-inp-'+id).focus();
+}
+
+function updSzMobile(id) {
+  const tam = szMobileAtual[id];
+  if (!tam) return;
+  const val = document.getElementById('sq-mob-inp-'+id).value;
+  // Sincronizar com input da tabela desktop
+  const inp = document.getElementById('sq-'+id+'-'+tam);
+  if (inp) { inp.value = val; updSzTotal(id); }
+}
+
 </script>
 </body>
 </html>
