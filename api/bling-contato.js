@@ -15,23 +15,33 @@ export default async function handler(req, res) {
   };
 
   try {
-    const { cnpj, nome, whatsapp, email } = req.body;
+    const { cnpj, nome, whatsapp, email, cep, cidade, bairro } = req.body;
 
     if (!cnpj || !nome) {
       return res.status(400).json({ error: 'CNPJ e nome são obrigatórios.' });
     }
 
     const cnpjLimpo = cnpj.replace(/\D/g, '');
+    const cepLimpo  = (cep || '').replace(/\D/g, '');
 
-    // Criar contato direto — sem verificar duplicata para evitar rate limit
-    // O Bling vai retornar erro se já existir
     const payload = {
       nome,
-      tipo: 'J',           // campo correto na API v3
+      tipo: 'J',
       situacao: 'A',
       numeroDocumento: cnpjLimpo,
       email: email || '',
       celular: (whatsapp || '').replace(/\D/g, ''),
+      endereco: {
+        geral: {
+          endereco: '',
+          numero: 'S/N',
+          complemento: '',
+          bairro: bairro || '',
+          cep: cepLimpo,
+          municipio: cidade || '',
+          uf: ''
+        }
+      }
     };
 
     const response = await fetch('https://www.bling.com.br/Api/v3/contatos', {
