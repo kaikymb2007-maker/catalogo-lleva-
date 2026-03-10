@@ -3,7 +3,7 @@
 // Cache local de 24 horas para carregamento instantâneo
 // ══════════════════════════════════════════
 
-const PROXY = '/.netlify/functions/bling';
+const PROXY = '/api/bling';
 const CACHE_KEY = 'lleva_produtos_cache';
 function proximaExpiracao() {
   // Expira às 6h da manhã do próximo dia (ou hoje se ainda não passou das 6h)
