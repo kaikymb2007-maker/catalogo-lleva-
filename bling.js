@@ -21,15 +21,17 @@ async function carregarProdutosBling() {
       return;
     }
 
-    // Buscar detalhes de cada produto
+    // Buscar detalhes em paralelo (muito mais rápido)
+    const BATCH = 10; // 10 por vez para não sobrecarregar
     const detalhes = [];
-    for (const p of produtos) {
-      try {
-        const data = await blingFetch(`/produtos/${p.id}`);
-        if (data.data) detalhes.push(data.data);
-      } catch(e) {
-        console.warn('Erro produto', p.id, e);
-      }
+    for (let i = 0; i < produtos.length; i += BATCH) {
+      const lote = produtos.slice(i, i + BATCH);
+      const results = await Promise.allSettled(
+        lote.map(p => blingFetch(`/produtos/${p.id}`))
+      );
+      results.forEach(r => {
+        if (r.status === 'fulfilled' && r.value?.data) detalhes.push(r.value.data);
+      });
     }
 
     // Agrupar por produto pai
