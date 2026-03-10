@@ -1040,7 +1040,7 @@ async function registrar() {
 
   errEl.classList.add('oculto');
 
-  if (!validarCNPJ(cnpj)) {
+  if (!validaCNPJ(cnpj.replace(/\D/g,""))) {
     errEl.textContent = 'CNPJ inválido. Verifique e tente novamente.';
     errEl.classList.remove('oculto');
     return;
