@@ -40,14 +40,25 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Contato não encontrado no Bling para este CNPJ. Cadastre o cliente primeiro.' });
     }
 
-    // 2. Montar itens sem campo "codigo" para evitar conflito com produtos existentes
-    const itensFormatados = itens.map(item => ({
-      descricao: item.nome || item.codigo,
-      quantidade: Number(item.quantidade) || 1,
-      valor: Number(item.preco) || 0,
-      desconto: 0,
-      unidade: 'UN'
-    }));
+    // 2. Montar itens — usa id do produto variação se disponível
+    const itensFormatados = itens.map(item => {
+      if (item.produtoId) {
+        return {
+          produto: { id: item.produtoId },
+          quantidade: Number(item.quantidade) || 1,
+          valor: Number(item.preco) || 0,
+          desconto: 0,
+          unidade: 'UN'
+        };
+      }
+      return {
+        descricao: item.nome || item.codigo,
+        quantidade: Number(item.quantidade) || 1,
+        valor: Number(item.preco) || 0,
+        desconto: 0,
+        unidade: 'UN'
+      };
+    });
 
     const payload = {
       numero: 0,

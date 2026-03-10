@@ -534,6 +534,7 @@ function agruparPorPai(produtos) {
       }
       if (tamanho) {
         pais[paiId].variacoes.push({
+          id: prod.id,
           tamanho,
           estoque,
           preco: parseFloat(prod.preco) || 0,
