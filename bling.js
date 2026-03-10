@@ -157,10 +157,14 @@ async function fetchTodosProdutos() {
   while (true) {
     const data = await blingFetch('/produtos', { situacao: 'A', limite: 100, pagina });
     const items = data.data || [];
+    console.log(`Página ${pagina}: ${items.length} produtos`);
     todos = todos.concat(items);
     if (items.length < 100) break;
     pagina++;
+    // Pequena pausa para não sobrecarregar a API
+    await new Promise(r => setTimeout(r, 300));
   }
+  console.log(`Total de produtos carregados: ${todos.length}`);
   return todos;
 }
 
