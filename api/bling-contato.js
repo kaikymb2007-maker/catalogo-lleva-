@@ -23,27 +23,14 @@ export default async function handler(req, res) {
 
     const cnpjLimpo = cnpj.replace(/\D/g, '');
 
-    // Verificar se já existe — busca direta por documento
-    try {
-      const r = await fetch(`https://www.bling.com.br/Api/v3/contatos?tipoPessoa=J&limite=100&criterio=6`, { headers });
-      const d = await r.json();
-      const lista = d.data || [];
-      const found = lista.find(c => (c.numeroDocumento || '').replace(/\D/g, '') === cnpjLimpo);
-      if (found) {
-        return res.status(200).json({ data: found, jaExistia: true });
-      }
-    } catch(e) {
-      console.warn('Erro ao verificar contato existente, continuando cadastro:', e.message);
-    }
-
-    // Criar novo contato
+    // Criar contato direto — sem verificar duplicata para evitar rate limit
+    // O Bling vai retornar erro se já existir
     const payload = {
       nome,
-      tipoPessoa: 'J',
+      tipo: 'J',           // campo correto na API v3
       situacao: 'A',
       numeroDocumento: cnpjLimpo,
       email: email || '',
-      telefone: (whatsapp || '').replace(/\D/g, ''),
       celular: (whatsapp || '').replace(/\D/g, ''),
     };
 
@@ -54,7 +41,17 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    console.log('Novo contato Bling:', JSON.stringify(data));
+    console.log('Bling contato:', JSON.stringify(data));
+
+    // Se CNPJ já existe, tenta buscar o contato existente
+    const jaExiste = data?.error?.fields?.some(f => f.code === 21 || f.msg?.includes('documento'));
+    if (jaExiste) {
+      const r = await fetch(`https://www.bling.com.br/Api/v3/contatos?tipo=J&limite=50`, { headers });
+      const d = await r.json();
+      const found = (d.data || []).find(c => (c.numeroDocumento || '').replace(/\D/g,'') === cnpjLimpo);
+      if (found) return res.status(200).json({ data: found, jaExistia: true });
+    }
+
     return res.status(response.status).json({ ...data, jaExistia: false });
 
   } catch(e) {
