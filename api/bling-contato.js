@@ -23,18 +23,17 @@ export default async function handler(req, res) {
 
     const cnpjLimpo = cnpj.replace(/\D/g, '');
 
-    // Verificar se já existe
-    let pagina = 1;
-    while (pagina <= 5) {
-      const r = await fetch(`https://www.bling.com.br/Api/v3/contatos?tipoPessoa=J&limite=100&pagina=${pagina}`, { headers });
+    // Verificar se já existe — busca direta por documento
+    try {
+      const r = await fetch(`https://www.bling.com.br/Api/v3/contatos?tipoPessoa=J&limite=100&criterio=6`, { headers });
       const d = await r.json();
       const lista = d.data || [];
       const found = lista.find(c => (c.numeroDocumento || '').replace(/\D/g, '') === cnpjLimpo);
       if (found) {
         return res.status(200).json({ data: found, jaExistia: true });
       }
-      if (!lista.length || lista.length < 100) break;
-      pagina++;
+    } catch(e) {
+      console.warn('Erro ao verificar contato existente, continuando cadastro:', e.message);
     }
 
     // Criar novo contato

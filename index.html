@@ -1089,7 +1089,7 @@ async function registrar() {
     setTimer();
 
   } catch(e) {
-    errEl.textContent = e.message;
+    errEl.textContent = typeof e === 'string' ? e : (e.message || 'Erro ao cadastrar. Tente novamente.');
     errEl.classList.remove('oculto');
   } finally {
     btn.textContent = 'CRIAR CADASTRO E ENTRAR →';
