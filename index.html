@@ -905,6 +905,7 @@ async function enviar(){
         // Encontrar a variação pelo tamanho para pegar o ID do produto filho
         const variacao = prod?.variacoes?.find(v => v.tamanho === tam);
         itens.push({
+          produtoId: variacao?.id || null,
           codigo: c.ref + '-' + tam,
           nome: c.name + ' TAM:' + tam,
           quantidade: qty,

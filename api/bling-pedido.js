@@ -28,37 +28,23 @@ export default async function handler(req, res) {
       if (found) contatoId = found.id;
     }
 
-    // 2. Buscar id de cada produto pelo código SKU
-    const itensComId = [];
-    for (const item of itens) {
-      try {
-        const resProd = await fetch(`https://www.bling.com.br/Api/v3/produtos?codigo=${encodeURIComponent(item.codigo)}&limite=5`, { headers });
-        const dataProd = await resProd.json();
-        const produtos = dataProd.data || [];
-        const prod = produtos.find(p => p.codigo === item.codigo);
-        if (prod) {
-          itensComId.push({
-            produto: { id: prod.id },
-            quantidade: Number(item.quantidade) || 1,
-            valor: Number(item.preco) || 0,
-            desconto: 0,
-            unidade: 'UN'
-          });
-        } else {
-          // Fallback sem id — vai pelo código
-          itensComId.push({
-            codigo: item.codigo,
-            descricao: item.nome || item.codigo,
-            quantidade: Number(item.quantidade) || 1,
-            valor: Number(item.preco) || 0,
-            desconto: 0,
-            unidade: 'UN'
-          });
-        }
-      } catch(e) {
-        console.warn('Erro ao buscar produto', item.codigo, e.message);
-      }
-    }
+    // 2. Buscar todos os produtos de uma vez e montar mapa codigo→id
+    // Busca em lotes de codigos separados por vírgula não existe na API v3
+    // Usamos os ids que já temos no payload do frontend
+    const itensFormatados = itens.map(item => ({
+      produto: item.produtoId ? { id: item.produtoId } : undefined,
+      codigo: item.produtoId ? undefined : item.codigo,
+      descricao: item.nome || item.codigo,
+      quantidade: Number(item.quantidade) || 1,
+      valor: Number(item.preco) || 0,
+      desconto: 0,
+      unidade: 'UN'
+    })).map(item => {
+      // Limpar campos undefined
+      const clean = {};
+      Object.keys(item).forEach(k => { if (item[k] !== undefined) clean[k] = item[k]; });
+      return clean;
+    });
 
     const payload = {
       numero: 0,
@@ -72,7 +58,7 @@ export default async function handler(req, res) {
       outrasDespesas: 0,
       desconto: { tipo: 1, valor: 0 },
       ...(contatoId ? { contato: { id: contatoId } } : {}),
-      itens: itensComId
+      itens: itensFormatados
     };
 
     console.log('Payload:', JSON.stringify(payload));
