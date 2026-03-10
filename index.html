@@ -193,10 +193,10 @@ input,button,textarea{font-family:var(--fonte)}
 
 @media(max-width:640px){
   .p-grid{grid-template-columns:1fr;gap:0}
-  .p-card{display:grid;grid-template-columns:140px 1fr;border-bottom:1px solid var(--cinza-borda)}
-  .p-img{aspect-ratio:3/4;height:100%;min-height:180px}
-  .p-body{padding:.75rem;gap:.4rem}
-  .p-name{font-size:10px}
+  .p-card{display:grid;grid-template-columns:120px 1fr;border-bottom:1px solid var(--cinza-borda);min-height:200px}
+  .p-img{aspect-ratio:unset;height:100%;min-height:200px}
+  .p-body{padding:.6rem;gap:.3rem;overflow:hidden;min-width:0}
+  .p-name{font-size:10px;white-space:normal;word-break:break-word;line-height:1.3}
   .p-price-lbl{font-size:9px}
   .sz-table{display:none}
   .sz-mobile{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.5rem}
@@ -217,6 +217,25 @@ input,button,textarea{font-family:var(--fonte)}
   .sz-mobile{display:none}
   .sz-mobile-qty{display:none!important}
 }
+
+/* ── BOTÃO FLUTUANTE WHATSAPP ── */
+.wpp-fab{position:fixed;bottom:1.5rem;right:1.5rem;z-index:550;background:#25d366;color:#fff;border:none;border-radius:50px;padding:.75rem 1.2rem;font-family:var(--fonte);font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;display:none;align-items:center;gap:.6rem;box-shadow:0 4px 20px rgba(37,211,102,.4);transition:all .2s}
+.wpp-fab.show{display:flex}
+.wpp-fab:hover{background:#1ebe5d;transform:translateY(-2px)}
+.wpp-fab svg{width:18px;height:18px;flex-shrink:0}
+.wpp-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:700;align-items:flex-end;justify-content:center}
+.wpp-modal-bg.on{display:flex}
+.wpp-modal{background:var(--branco);width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:1.5rem;animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.wpp-modal-title{font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:.3rem}
+.wpp-modal-sub{font-size:11px;color:var(--cinza-texto);margin-bottom:1.2rem}
+.wpp-modal-close{float:right;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--cinza-texto);margin-top:-.2rem}
+.wpp-vendor{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1rem;border:1px solid var(--cinza-borda);margin-bottom:.5rem;cursor:pointer;transition:all .15s;text-decoration:none}
+.wpp-vendor:hover{border-color:#25d366;background:#f0fff4}
+.wpp-vendor-name{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--preto)}
+.wpp-vendor-lbl{font-size:9px;color:var(--cinza-texto);letter-spacing:1px;text-transform:uppercase;margin-top:.15rem}
+.wpp-vendor-ico{background:#25d366;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+@media(max-width:640px){.wpp-fab{bottom:1rem;right:1rem;padding:.65rem 1rem;font-size:10px}}
 </style>
 </head>
 <body>
@@ -641,7 +660,7 @@ const msgs=['CATÁLOGO EXCLUSIVO ATACADO','PEDIDO MÍNIMO: 18 UNIDADES','COLEÇ�
 const t=document.getElementById('tickerTrack');
 [...msgs,...msgs].forEach(m=>{const s=document.createElement('span');s.className='ticker-item';s.innerHTML=m+'<span>·</span>';t.appendChild(s);});
 
-function maskCNPJ(input){
+function maskCNPJ(input){if(!input)return;
   let v=input.value.replace(/\D/g,'');if(v.length>14)v=v.slice(0,14);
   v=v.replace(/(\d{2})(\d)/,'$1.$2');v=v.replace(/(\d{2})\.(\d{3})(\d)/,'$1.$2.$3');
   v=v.replace(/\.(\d{3})(\d)/,'.$1/$2');v=v.replace(/(\d{4})(\d)/,'$1-$2');
@@ -747,6 +766,7 @@ function entrarCatalogo(){
   document.getElementById('headerNome').textContent=comprador.nome;
   document.getElementById('headerLoja').textContent=comprador.loja;
   document.getElementById('heroWelcome').textContent='Bem-vindo, '+comprador.nome.split(' ')[0]+'!';
+  document.getElementById('wppFab').classList.add('show');
   document.getElementById('buyerBox').innerHTML='<strong>📋 Dados do comprador</strong>'+comprador.nome+' · '+comprador.loja+'<br>📱 '+comprador.whats+(comprador.email?' · 📧 '+comprador.email:'')+'<br>📍 '+comprador.cidade+'/'+comprador.estado+' · CNPJ: '+comprador.cnpj;
   // Tenta carregar do Bling, fallback para fixo
   carregarProdutosBling();
@@ -765,6 +785,7 @@ function sair(){
   document.getElementById('btnAvancar').classList.add('btn-hidden');
   document.getElementById('btnVerificar').classList.remove('btn-hidden');
   showScreen('screenLogin');
+  document.getElementById('wppFab').classList.remove('show');
 }
 function showScreen(id){
   document.querySelectorAll('.auth-screen').forEach(s=>s.classList.add('oculto'));
@@ -872,17 +893,39 @@ function updCart(){
 }
 function openCart(){document.getElementById('drw').classList.add('on');document.getElementById('ov').classList.add('on')}
 function closeCart(){document.getElementById('drw').classList.remove('on');document.getElementById('ov').classList.remove('on')}
-function enviar(){
+async function enviar(){
   if(!cart.length){alert('Adicione pelo menos um produto.');return}
   const btn=document.getElementById('btnSend');btn.textContent='ENVIANDO...';btn.disabled=true;
-  setTimeout(()=>{
-    const ref='LD-'+Date.now().toString().slice(-6);
-    document.getElementById('modalRef').textContent='Nº do pedido: '+ref;
+  try {
+    // Montar itens do pedido — um item por tamanho
+    const itens = [];
+    cart.forEach(c => {
+      Object.entries(c.qtds).forEach(([tam, qty]) => {
+        itens.push({
+          codigo: c.ref + '-' + tam,
+          nome: c.name + ' TAM:' + tam,
+          quantidade: qty,
+          preco: c.unit
+        });
+      });
+    });
+    const total = cart.reduce((s,c) => s + c.tot * c.unit, 0);
+    const obs = document.getElementById('bNotes').value;
+    const nomeCliente = comprador.nome + ' · ' + comprador.loja + ' · CNPJ: ' + comprador.cnpj;
+
+    const pedidoId = await criarPedidoBling({ itens, total, observacoes: obs, nomeCliente });
+    const ref = pedidoId ? 'Bling #' + pedidoId : 'LD-' + Date.now().toString().slice(-6);
+
+    document.getElementById('modalRef').textContent = 'Nº do pedido: ' + ref;
     document.getElementById('modalBg').classList.add('on');
     cart=[];updCart();closeCart();
     document.getElementById('bNotes').value='';
+  } catch(e) {
+    console.error(e);
+    alert('Erro ao enviar pedido. Tente novamente.');
+  } finally {
     btn.textContent='ENVIAR AO VENDEDOR →';btn.disabled=false;
-  },900);
+  }
 }
 function fecharModal(){document.getElementById('modalBg').classList.remove('on')}
 
@@ -912,5 +955,36 @@ function updSzMobile(id) {
 }
 
 </script>
+
+<!-- BOTÃO FLUTUANTE WHATSAPP -->
+<button class="wpp-fab" id="wppFab" onclick="abrirVendedores()">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.557 4.135 1.535 5.875L.057 23.48a.75.75 0 00.916.938l5.82-1.527A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.718 9.718 0 01-4.953-1.355l-.355-.212-3.683.966.984-3.595-.232-.371A9.718 9.718 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg>
+  FALAR COM VENDEDOR
+</button>
+
+<!-- MODAL VENDEDORES -->
+<div class="wpp-modal-bg" id="wppModalBg" onclick="fecharVendedores(event)">
+  <div class="wpp-modal">
+    <button class="wpp-modal-close" onclick="fecharVendedores()">✕</button>
+    <div class="wpp-modal-title">Falar com Vendedor</div>
+    <p class="wpp-modal-sub">Escolha seu vendedor para continuar pelo WhatsApp</p>
+    <a class="wpp-vendor" href="https://wa.me/5511916308405" target="_blank">
+      <div><div class="wpp-vendor-name">Isaque</div><div class="wpp-vendor-lbl">Atacado · LLeva Denim</div></div>
+      <div class="wpp-vendor-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.557 4.135 1.535 5.875L.057 23.48a.75.75 0 00.916.938l5.82-1.527A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.718 9.718 0 01-4.953-1.355l-.355-.212-3.683.966.984-3.595-.232-.371A9.718 9.718 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg></div>
+    </a>
+    <a class="wpp-vendor" href="https://wa.me/5511976616928" target="_blank">
+      <div><div class="wpp-vendor-name">Patrick</div><div class="wpp-vendor-lbl">Atacado · LLeva Denim</div></div>
+      <div class="wpp-vendor-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.557 4.135 1.535 5.875L.057 23.48a.75.75 0 00.916.938l5.82-1.527A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.718 9.718 0 01-4.953-1.355l-.355-.212-3.683.966.984-3.595-.232-.371A9.718 9.718 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg></div>
+    </a>
+    <a class="wpp-vendor" href="https://wa.me/5511974978109" target="_blank">
+      <div><div class="wpp-vendor-name">Tiago</div><div class="wpp-vendor-lbl">Atacado · LLeva Denim</div></div>
+      <div class="wpp-vendor-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.557 4.135 1.535 5.875L.057 23.48a.75.75 0 00.916.938l5.82-1.527A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.718 9.718 0 01-4.953-1.355l-.355-.212-3.683.966.984-3.595-.232-.371A9.718 9.718 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg></div>
+    </a>
+    <a class="wpp-vendor" href="https://wa.me/5511910649883" target="_blank">
+      <div><div class="wpp-vendor-name">Renan</div><div class="wpp-vendor-lbl">Atacado · LLeva Denim</div></div>
+      <div class="wpp-vendor-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.136.557 4.135 1.535 5.875L.057 23.48a.75.75 0 00.916.938l5.82-1.527A11.944 11.944 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.718 9.718 0 01-4.953-1.355l-.355-.212-3.683.966.984-3.595-.232-.371A9.718 9.718 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg></div>
+    </a>
+  </div>
+</div>
 </body>
 </html>
