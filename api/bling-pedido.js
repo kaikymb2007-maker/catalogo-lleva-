@@ -54,7 +54,7 @@ export default async function handler(req, res) {
       data: new Date().toISOString().split('T')[0],
       dataSaida: new Date().toISOString().split('T')[0],
       dataPrevista: new Date().toISOString().split('T')[0],
-      situacao: { id: 6 },
+      situacao: { id: 15 },
       contato: { id: idContato },
       observacoes: `${nomeCliente || ''}\n${observacoes || ''}`.trim(),
       loja: { id: 0 },
