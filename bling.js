@@ -21,8 +21,9 @@ async function carregarProdutosBling() {
       return;
     }
 
-    // Buscar detalhes em paralelo (muito mais rápido)
-    const BATCH = 10; // 10 por vez para não sobrecarregar
+    // Buscar detalhes em paralelo com controle de rate limit
+    const BATCH = 3; // 3 por vez para respeitar o limite da API
+    const PAUSA = 500; // 500ms entre lotes
     const detalhes = [];
     for (let i = 0; i < produtos.length; i += BATCH) {
       const lote = produtos.slice(i, i + BATCH);
@@ -32,6 +33,10 @@ async function carregarProdutosBling() {
       results.forEach(r => {
         if (r.status === 'fulfilled' && r.value?.data) detalhes.push(r.value.data);
       });
+      // Atualizar loading com progresso
+      const el = document.querySelector('#blingLoader p');
+      if (el) el.textContent = `Carregando produtos... ${Math.min(i + BATCH, produtos.length)} de ${produtos.length}`;
+      if (i + BATCH < produtos.length) await new Promise(r => setTimeout(r, PAUSA));
     }
 
     // Agrupar por produto pai
