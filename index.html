@@ -911,7 +911,7 @@ async function enviar(){
     });
     const total = cart.reduce((s,c) => s + c.tot * c.unit, 0);
     const obs = document.getElementById('bNotes').value;
-    const nomeCliente = comprador.nome + ' · ' + comprador.loja + ' · CNPJ: ' + comprador.cnpj;
+    const nomeCliente = (comprador.nome || '') + ' · ' + (comprador.loja || '') + ' · CNPJ: ' + (comprador.cnpj || '');
 
     const pedidoId = await criarPedidoBling({ itens, total, observacoes: obs, nomeCliente });
     const ref = pedidoId ? 'Bling #' + pedidoId : 'LD-' + Date.now().toString().slice(-6);
