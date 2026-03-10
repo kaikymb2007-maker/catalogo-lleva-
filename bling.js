@@ -1,9 +1,44 @@
 // ══════════════════════════════════════════
 // INTEGRAÇÃO BLING — via Netlify Function (sem CORS)
-// Agrupa variações por produto pai
+// Cache local de 24 horas para carregamento instantâneo
 // ══════════════════════════════════════════
 
 const PROXY = '/.netlify/functions/bling';
+const CACHE_KEY = 'lleva_produtos_cache';
+function proximaExpiracao() {
+  // Expira às 6h da manhã do próximo dia (ou hoje se ainda não passou das 6h)
+  const agora = new Date();
+  const expira = new Date();
+  expira.setHours(6, 0, 0, 0);
+  if (agora >= expira) expira.setDate(expira.getDate() + 1); // já passou das 6h, vai pro próximo dia
+  return expira.getTime();
+}
+
+function salvarCache(produtos) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      expiraEm: proximaExpiracao(),
+      produtos
+    }));
+  } catch(e) { console.warn('Cache não disponível', e); }
+}
+
+function lerCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { expiraEm, produtos } = JSON.parse(raw);
+    if (Date.now() > expiraEm) {
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return produtos;
+  } catch(e) { return null; }
+}
+
+function limparCache() {
+  try { localStorage.removeItem(CACHE_KEY); } catch(e) {}
+}
 
 async function blingFetch(path, params = {}) {
   const query = new URLSearchParams({ path, ...params }).toString();
@@ -12,7 +47,20 @@ async function blingFetch(path, params = {}) {
   return res.json();
 }
 
-async function carregarProdutosBling() {
+async function carregarProdutosBling(forcar = false) {
+  // Tentar carregar do cache primeiro
+  if (!forcar) {
+    const cached = lerCache();
+    if (cached && cached.length) {
+      console.log(`Cache carregado: ${cached.length} produtos`);
+      window.AP = cached;
+      document.getElementById('pCount').textContent = cached.length + ' produto' + (cached.length !== 1 ? 's' : '');
+      document.getElementById('wQtd').textContent = cached.length;
+      render();
+      return;
+    }
+  }
+
   mostrarLoadingCatalogo(true);
   try {
     const produtos = await fetchTodosProdutos();
@@ -48,6 +96,7 @@ async function carregarProdutosBling() {
     }
 
     window.AP = cards;
+    salvarCache(cards); // salva no cache por 24h
     document.getElementById('pCount').textContent = cards.length + ' produto' + (cards.length !== 1 ? 's' : '');
     document.getElementById('wQtd').textContent = cards.length;
     render();
