@@ -15,36 +15,39 @@ export default async function handler(req, res) {
   };
 
   try {
-    const { itens, total, observacoes, nomeCliente, cnpj } = req.body;
+    const { itens, total, observacoes, nomeCliente, cnpj, contatoId } = req.body;
 
-    // 1. Buscar id do contato pelo CNPJ
-    let contatoId = null;
-    if (cnpj) {
+    // 1. Resolver id do contato — usa o que veio do frontend, ou busca pelo CNPJ
+    let idContato = contatoId && contatoId !== 0 ? contatoId : null;
+
+    if (!idContato && cnpj) {
       const cnpjLimpo = cnpj.replace(/\D/g, '');
-      const resContato = await fetch(`https://www.bling.com.br/Api/v3/contatos?tipoPessoa=J&limite=100`, { headers });
-      const dataContato = await resContato.json();
-      const contatos = dataContato.data || [];
-      const found = contatos.find(c => (c.numeroDocumento || '').replace(/\D/g, '') === cnpjLimpo);
-      if (found) contatoId = found.id;
+      // Busca paginada até encontrar
+      let pagina = 1;
+      let found = null;
+      while (!found && pagina <= 5) {
+        const r = await fetch(`https://www.bling.com.br/Api/v3/contatos?tipoPessoa=J&limite=100&pagina=${pagina}`, { headers });
+        const d = await r.json();
+        const lista = d.data || [];
+        found = lista.find(c => (c.numeroDocumento || '').replace(/\D/g, '') === cnpjLimpo);
+        if (!lista.length || lista.length < 100) break;
+        pagina++;
+      }
+      if (found) idContato = found.id;
     }
 
-    // 2. Buscar todos os produtos de uma vez e montar mapa codigo→id
-    // Busca em lotes de codigos separados por vírgula não existe na API v3
-    // Usamos os ids que já temos no payload do frontend
+    if (!idContato) {
+      return res.status(400).json({ error: 'Contato não encontrado no Bling para este CNPJ. Cadastre o cliente primeiro.' });
+    }
+
+    // 2. Montar itens sem campo "codigo" para evitar conflito com produtos existentes
     const itensFormatados = itens.map(item => ({
-      produto: item.produtoId ? { id: item.produtoId } : undefined,
-      codigo: item.produtoId ? undefined : item.codigo,
       descricao: item.nome || item.codigo,
       quantidade: Number(item.quantidade) || 1,
       valor: Number(item.preco) || 0,
       desconto: 0,
       unidade: 'UN'
-    })).map(item => {
-      // Limpar campos undefined
-      const clean = {};
-      Object.keys(item).forEach(k => { if (item[k] !== undefined) clean[k] = item[k]; });
-      return clean;
-    });
+    }));
 
     const payload = {
       numero: 0,
@@ -52,12 +55,12 @@ export default async function handler(req, res) {
       dataSaida: new Date().toISOString().split('T')[0],
       dataPrevista: new Date().toISOString().split('T')[0],
       situacao: { id: 6 },
+      contato: { id: idContato },
       observacoes: `${nomeCliente || ''}\n${observacoes || ''}`.trim(),
       loja: { id: 0 },
       numeroPedidoCompra: '',
       outrasDespesas: 0,
       desconto: { tipo: 1, valor: 0 },
-      ...(contatoId ? { contato: { id: contatoId } } : {}),
       itens: itensFormatados
     };
 
