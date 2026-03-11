@@ -968,7 +968,6 @@ function addCart(id){
 function rmCart(id){cart=cart.filter(c=>c.id!=id);updCart()}
 function updCart(){
   const totalPecasCarrinho = cart.reduce((s,c)=>s+c.tot,0);
-  const totalPecasCarrinho = cart.reduce((s,c)=>s+c.tot,0);
   document.getElementById('cartN').textContent=cart.length;
   const avisoMin = document.getElementById('minAviso');
   if(avisoMin) avisoMin.style.display = totalPecasCarrinho > 0 && totalPecasCarrinho < QTD_MIN ? 'block' : 'none';
