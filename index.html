@@ -738,10 +738,10 @@ function maskCNPJ(input){if(!input)return;
   v=v.replace(/(\d{2})(\d)/,'$1.$2');v=v.replace(/(\d{2})\.(\d{3})(\d)/,'$1.$2.$3');
   v=v.replace(/\.(\d{3})(\d)/,'.$1/$2');v=v.replace(/(\d{4})(\d)/,'$1-$2');
   input.value=v;
-  document.getElementById('loginOk').classList.remove('show');
-  document.getElementById('btnAvancar').classList.add('btn-hidden');
-  document.getElementById('btnVerificar').classList.remove('btn-hidden');
-  document.getElementById('loginErr').classList.remove('show');
+  const ok=document.getElementById('loginOk');if(ok)ok.classList.remove('show');
+  const av=document.getElementById('btnAvancar');if(av)av.classList.add('btn-hidden');
+  const vf=document.getElementById('btnVerificar');if(vf)vf.classList.remove('btn-hidden');
+  const er=document.getElementById('loginErr');if(er)er.classList.remove('show');
 }
 function maskPhone(input){
   let v=input.value.replace(/\D/g,'');if(v.length>11)v=v.slice(0,11);
