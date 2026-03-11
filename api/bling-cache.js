@@ -49,12 +49,14 @@ async function fetchTodosProdutos(token) {
     if (!grupos[paiId]) {
       // Detectar categoria pelo nome do produto
       const nomeCompleto = prod.nome || '';
-      let category = 'outros';
+      const nomeCategoriaBling = (prod.categoria?.nome || '').toLowerCase();
       const nomeLower = nomeCompleto.toLowerCase();
-      if (nomeLower.includes('skinny')) category = 'skinny';
-      else if (nomeLower.includes('alfaiataria')) category = 'alfaiataria';
-      else if (nomeLower.includes('bermuda')) category = 'bermuda';
-      else if (nomeLower.includes('reta')) category = 'reta';
+      let category = 'outros';
+      // Tenta pela categoria do Bling primeiro, depois pelo nome
+      if (nomeCategoriaBling.includes('skinny') || nomeLower.includes('skinny')) category = 'skinny';
+      else if (nomeCategoriaBling.includes('alfaiataria') || nomeLower.includes('alfaiataria')) category = 'alfaiataria';
+      else if (nomeCategoriaBling.includes('bermuda') || nomeLower.includes('bermuda')) category = 'bermuda';
+      else if (nomeCategoriaBling.includes('reta') || nomeLower.includes('reta')) category = 'reta';
 
       grupos[paiId] = {
         id: paiId,

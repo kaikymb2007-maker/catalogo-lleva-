@@ -508,10 +508,11 @@ function lerCache() {
     if (!raw) return null;
     const { produtos } = JSON.parse(raw);
     if (!Array.isArray(produtos) || produtos.length === 0) return null;
-    // Invalida cache antigo que não tem id nas variações
+    // Invalida cache antigo sem IDs nas variações ou sem category
     const temId = produtos.some(p => p.variacoes?.some(v => v.id));
-    if (!temId) {
-      console.log('Cache antigo sem IDs — invalidando...');
+    const temCategory = produtos.every(p => p.category && p.category !== 'undefined');
+    if (!temId || !temCategory) {
+      console.log('Cache antigo inválido — invalidando...');
       localStorage.removeItem(CACHE_KEY);
       return null;
     }
