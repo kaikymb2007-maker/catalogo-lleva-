@@ -72,7 +72,7 @@ async function fetchTodosProdutos(token) {
     }
     grupos[paiId].variacoes.push({
       id: prod.id,
-      tamanho: prod.variacao?.nome || '',
+      tamanho: (prod.variacao?.nome || '').replace(/[^0-9]/g, '') || prod.variacao?.nome || '',
       estoque: prod.estoque?.saldoVirtualTotal || 0,
       preco: prod.preco || 0
     });
@@ -83,7 +83,7 @@ async function fetchTodosProdutos(token) {
     .filter(p => p.variacoes.length > 0)
     .map(p => ({
       ...p,
-      variacoes: [...p.variacoes].sort((a, b) => parseInt(a.tamanho) - parseInt(b.tamanho))
+      variacoes: [...p.variacoes].sort((a, b) => parseInt(a.tamanho.replace(/[^0-9]/g,'')) - parseInt(b.tamanho.replace(/[^0-9]/g,'')))
     }));
 }
 
