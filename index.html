@@ -303,41 +303,41 @@ input,button,textarea{font-family:var(--fonte)}
       </div>
     </div>
 
-    <div class="auth-field">
-      <label class="auth-label">CNPJ *</label>
-      <input type="text" id="regCnpj" class="auth-input" placeholder="00.000.000/0000-00" maxlength="18" oninput="maskCNPJ(this)">
+    <div class="field">
+      <label>CNPJ *</label>
+      <input type="text" id="regCnpj" placeholder="00.000.000/0000-00" maxlength="18" oninput="maskCNPJ(this)">
     </div>
-    <div class="auth-field">
-      <label class="auth-label">Nome / Nome Fantasia *</label>
-      <input type="text" id="regNome" class="auth-input" placeholder="Ex: Loja do João">
+    <div class="field">
+      <label>Nome / Nome Fantasia *</label>
+      <input type="text" id="regNome" placeholder="Ex: Loja do João">
     </div>
-    <div class="auth-field">
-      <label class="auth-label">WhatsApp *</label>
-      <input type="text" id="regWhats" class="auth-input" placeholder="(11) 99999-9999" maxlength="15" oninput="maskPhone(this)">
+    <div class="field">
+      <label>WhatsApp *</label>
+      <input type="text" id="regWhats" placeholder="(11) 99999-9999" maxlength="15" oninput="maskPhone(this)">
     </div>
-    <div class="auth-field">
-      <label class="auth-label">E-mail</label>
-      <input type="email" id="regEmail" class="auth-input" placeholder="seuemail@exemplo.com">
+    <div class="field">
+      <label>E-mail</label>
+      <input type="email" id="regEmail" placeholder="seuemail@exemplo.com">
     </div>
-    <div class="auth-row">
-      <div class="auth-field">
-        <label class="auth-label">CEP *</label>
-        <input type="text" id="regCep" class="auth-input" placeholder="00000-000" maxlength="9" oninput="maskCEP(this); buscarCep(this.value)">
+    <div class="field-row">
+      <div class="field">
+        <label>CEP *</label>
+        <input type="text" id="regCep" placeholder="00000-000" maxlength="9" oninput="maskCEP(this); buscarCep(this.value)">
       </div>
-      <div class="auth-field">
-        <label class="auth-label">Cidade *</label>
-        <input type="text" id="regCidade" class="auth-input" placeholder="Ex: São Paulo">
+      <div class="field">
+        <label>Cidade *</label>
+        <input type="text" id="regCidade" placeholder="Ex: São Paulo">
       </div>
     </div>
-    <div class="auth-field">
-      <label class="auth-label">Bairro *</label>
-      <input type="text" id="regBairro" class="auth-input" placeholder="Ex: Centro">
+    <div class="field">
+      <label>Bairro *</label>
+      <input type="text" id="regBairro" placeholder="Ex: Centro">
     </div>
 
-    <p id="regError" class="auth-error oculto"></p>
+    <div class="auth-alert err" id="regError" style="display:none"></div>
 
-    <button class="auth-btn" id="btnRegistrar" onclick="registrar()">CRIAR CADASTRO E ENTRAR →</button>
-    <p class="auth-signup-link">Já tem cadastro? <button class="auth-link-btn" onclick="showScreen('screenLogin')">Entrar →</button></p>
+    <button class="btn-full" id="btnRegistrar" onclick="registrar()">CRIAR CADASTRO E ENTRAR →</button>
+    <p class="auth-signup-link" style="margin-top:1rem">Já tem cadastro? <button class="auth-link-btn" onclick="showScreen('screenLogin')">Entrar →</button></p>
   </div>
 </div>
 
@@ -1070,21 +1070,21 @@ async function registrar() {
   const errEl = document.getElementById('regError');
   const btn   = document.getElementById('btnRegistrar');
 
-  errEl.classList.add('oculto');
+  errEl.style.display = 'none';
 
   if (!validaCNPJ(cnpj.replace(/\D/g,""))) {
     errEl.textContent = 'CNPJ inválido. Verifique e tente novamente.';
-    errEl.classList.remove('oculto');
+    errEl.style.display = 'block';
     return;
   }
   if (!nome) {
     errEl.textContent = 'Informe o nome ou nome fantasia.';
-    errEl.classList.remove('oculto');
+    errEl.style.display = 'block';
     return;
   }
   if (!whats) {
     errEl.textContent = 'Informe o WhatsApp para contato.';
-    errEl.classList.remove('oculto');
+    errEl.style.display = 'block';
     return;
   }
 
@@ -1094,7 +1094,7 @@ async function registrar() {
 
   if (!cep || !cidade || !bairro) {
     errEl.textContent = 'Preencha CEP, cidade e bairro.';
-    errEl.classList.remove('oculto');
+    errEl.style.display = 'block';
     return;
   }
 
@@ -1112,7 +1112,7 @@ async function registrar() {
     // CNPJ já cadastrado — mostra aviso e redireciona pro login
     if (data.jaExistia || data?.error?.fields?.some(f => f.element === 'cnpj')) {
       document.getElementById('regAviso').classList.remove('oculto');
-      document.getElementById('regError').classList.add('oculto');
+      document.getElementById('regError').style.display = 'none';
       return;
     }
 
@@ -1140,7 +1140,7 @@ async function registrar() {
 
   } catch(e) {
     errEl.textContent = typeof e === 'string' ? e : (e.message || 'Erro ao cadastrar. Tente novamente.');
-    errEl.classList.remove('oculto');
+    errEl.style.display = 'block';
   } finally {
     btn.textContent = 'CRIAR CADASTRO E ENTRAR →';
     btn.disabled = false;
