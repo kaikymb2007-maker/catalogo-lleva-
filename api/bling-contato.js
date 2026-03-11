@@ -53,13 +53,10 @@ export default async function handler(req, res) {
     const data = await response.json();
     console.log('Bling contato:', JSON.stringify(data));
 
-    // Se CNPJ já existe, tenta buscar o contato existente
-    const jaExiste = data?.error?.fields?.some(f => f.code === 21 || f.msg?.includes('documento'));
-    if (jaExiste) {
-      const r = await fetch(`https://www.bling.com.br/Api/v3/contatos?tipo=J&limite=50`, { headers });
-      const d = await r.json();
-      const found = (d.data || []).find(c => (c.numeroDocumento || '').replace(/\D/g,'') === cnpjLimpo);
-      if (found) return res.status(200).json({ data: found, jaExistia: true });
+    // Se CNPJ já existe, retorna sucesso com flag jaExistia
+    const cnpjDuplicado = data?.error?.fields?.some(f => f.element === 'cnpj');
+    if (cnpjDuplicado) {
+      return res.status(200).json({ data: { id: 0 }, jaExistia: true });
     }
 
     return res.status(response.status).json({ ...data, jaExistia: false });
