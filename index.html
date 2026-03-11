@@ -1136,7 +1136,7 @@ async function registrar() {
     document.getElementById('wNome').textContent = nome.split(' ')[0];
     document.getElementById('wLoja').textContent = nome;
     showScreen(null);
-    setTimer();
+    setTimeout(()=>{document.getElementById('screenBemVindo').classList.add('ativo');iniciarContagem();},300);
 
   } catch(e) {
     errEl.textContent = typeof e === 'string' ? e : (e.message || 'Erro ao cadastrar. Tente novamente.');
