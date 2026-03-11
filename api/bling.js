@@ -1,24 +1,18 @@
-// Vercel Function — proxy seguro para API Bling
+import { getBlingToken } from './bling-token.js';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const token = process.env.BLING_TOKEN;
-  if (!token) {
-    return res.status(500).json({ error: 'Token não configurado' });
-  }
+  const { path, ...params } = req.query;
+  if (!path) return res.status(400).json({ error: 'path obrigatório' });
 
   try {
-    const path = req.query.path || '/produtos';
-    const params = { ...req.query };
-    delete params.path;
-
-    const query = new URLSearchParams(params).toString();
-    const url = `https://www.bling.com.br/Api/v3${path}${query ? '?' + query : ''}`;
+    const token = await getBlingToken();
+    const qs = new URLSearchParams(params).toString();
+    const url = `https://www.bling.com.br/Api/v3${path}${qs ? '?' + qs : ''}`;
 
     const response = await fetch(url, {
       headers: {
@@ -29,8 +23,8 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     return res.status(response.status).json(data);
-
-  } catch (e) {
+  } catch(e) {
+    console.error('Erro Bling proxy:', e.message);
     return res.status(500).json({ error: e.message });
   }
 }
