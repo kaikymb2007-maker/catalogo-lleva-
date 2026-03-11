@@ -265,7 +265,6 @@ input,button,textarea{font-family:var(--fonte)}
   .header-top{flex-wrap:nowrap;min-width:0;width:100%}
   .header-logo{flex-shrink:0;min-width:0}
   .header-actions{flex-shrink:0;min-width:0;display:flex;align-items:center;gap:.4rem}
-  .btn-atualizar{display:none}
   .cat-main{padding-left:.75rem;padding-right:.75rem}
   .p-grid{width:100%;max-width:100%}
   .p-card{width:100%;max-width:100%;overflow:hidden}
@@ -508,11 +507,16 @@ function lerCache() {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const { produtos } = JSON.parse(raw);
-    if (Array.isArray(produtos) && produtos.length > 0) {
-      console.log('Cache carregado:', produtos.length, 'produtos');
-      return produtos;
+    if (!Array.isArray(produtos) || produtos.length === 0) return null;
+    // Invalida cache antigo que não tem id nas variações
+    const temId = produtos.some(p => p.variacoes?.some(v => v.id));
+    if (!temId) {
+      console.log('Cache antigo sem IDs — invalidando...');
+      localStorage.removeItem(CACHE_KEY);
+      return null;
     }
-    return null;
+    console.log('Cache carregado:', produtos.length, 'produtos');
+    return produtos;
   } catch(e) { return null; }
 }
 
@@ -528,180 +532,54 @@ async function blingFetch(path, params = {}) {
 }
 
 async function carregarProdutosBling(forcar = false) {
-  // Tentar carregar do cache primeiro
+  // 1. Cache local — carrega instantaneamente se disponível e não está forçando
   if (!forcar) {
     const cached = lerCache();
     if (cached && cached.length) {
-      console.log(`Cache carregado: ${cached.length} produtos`);
       window.AP = cached;
       document.getElementById('pCount').textContent = cached.length + ' produto' + (cached.length !== 1 ? 's' : '');
       document.getElementById('wQtd').textContent = cached.length;
       render();
+      // Atualiza cache do servidor em background silenciosamente
+      atualizarCacheServidor();
       return;
     }
   }
 
   mostrarLoadingCatalogo(true);
   try {
-    const produtos = await fetchTodosProdutos();
-    if (!produtos.length) {
-      mostrarErroCatalogo('Nenhum produto ativo encontrado no Bling.');
+    const url = forcar ? '/api/bling-cache?forcar=1' : '/api/bling-cache';
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('Erro ao buscar produtos');
+    const { produtos } = await r.json();
+
+    if (!produtos || !produtos.length) {
+      mostrarErroCatalogo('Nenhum produto encontrado.');
       return;
     }
 
-    // Buscar detalhes em paralelo com controle de rate limit
-    const BATCH = 3; // 3 por vez para respeitar o limite da API
-    const PAUSA = 500; // 500ms entre lotes
-    const detalhes = [];
-    for (let i = 0; i < produtos.length; i += BATCH) {
-      const lote = produtos.slice(i, i + BATCH);
-      const results = await Promise.allSettled(
-        lote.map(p => blingFetch(`/produtos/${p.id}`))
-      );
-      results.forEach(r => {
-        if (r.status === 'fulfilled' && r.value?.data) detalhes.push(r.value.data);
-      });
-      // Atualizar loading com progresso
-      const el = document.querySelector('#blingLoader p');
-      if (el) el.textContent = `Carregando produtos... ${Math.min(i + BATCH, produtos.length)} de ${produtos.length}`;
-      if (i + BATCH < produtos.length) await new Promise(r => setTimeout(r, PAUSA));
-    }
-
-    // Agrupar por produto pai
-    const cards = agruparPorPai(detalhes);
-
-    if (!cards.length) {
-      mostrarErroCatalogo('Nenhum produto com estoque disponível.');
-      return;
-    }
-
-    window.AP = cards;
-    salvarCache(cards); // salva no cache por 24h
-    document.getElementById('pCount').textContent = cards.length + ' produto' + (cards.length !== 1 ? 's' : '');
-    document.getElementById('wQtd').textContent = cards.length;
+    salvarCache(produtos);
+    window.AP = produtos;
+    document.getElementById('pCount').textContent = produtos.length + ' produto' + (produtos.length !== 1 ? 's' : '');
+    document.getElementById('wQtd').textContent = produtos.length;
     render();
-
-  } catch (e) {
-    console.error('Erro Bling:', e);
-    mostrarErroCatalogo('Erro ao conectar com o Bling. Usando catálogo fixo.');
-    render();
+  } catch(e) {
+    console.error('Erro ao carregar produtos:', e);
+    mostrarErroCatalogo('Erro ao carregar produtos. Tente novamente.');
   } finally {
     mostrarLoadingCatalogo(false);
   }
 }
 
-function agruparPorPai(produtos) {
-  const pais = {};   // id do pai → card
-  const orphans = []; // produtos sem pai (produto simples)
-
-  for (const prod of produtos) {
-    const estoque = prod.estoque?.saldoVirtualTotal || 0;
-    if (estoque <= 0) continue; // sem estoque, ignora
-
-    const paiId = prod.variacao?.produtoPai?.id;
-    const tamanho = extrairTamanho(prod.variacao?.nome || prod.nome || '');
-    const image = prod.midia?.imagens?.internas?.[0]?.link || null;
-
-    if (paiId) {
-      // É uma variação — agrupa pelo pai
-      if (!pais[paiId]) {
-        // Nome limpo: remove "TAMANHO:XX" do nome
-        const nomeBase = limparNome(prod.nome);
-        pais[paiId] = {
-          id: paiId,
-          ref: extrairRef(prod.codigo || ''),
-          name: nomeBase,
-          category: detectarCategoria(nomeBase),
-          variacoes: [],
-          link: prod.linkExterno || '',
-          image: image,
-          price: parseFloat(prod.preco) || 0,
-        };
-      }
-      if (tamanho) {
-        pais[paiId].variacoes.push({
-          id: prod.id,
-          tamanho,
-          estoque,
-          preco: parseFloat(prod.preco) || 0,
-          codigo: prod.codigo || ''
-        });
-        // Usa a imagem da primeira variação que tiver
-        if (!pais[paiId].image && image) pais[paiId].image = image;
-      }
-    } else {
-      // Produto simples sem variação
-      orphans.push({
-        id: prod.id,
-        ref: prod.codigo || String(prod.id),
-        name: limparNome(prod.nome),
-        category: detectarCategoria(prod.nome),
-        variacoes: tamanho ? [{ tamanho, estoque, preco: parseFloat(prod.preco) || 0 }] : [],
-        link: prod.linkExterno || '',
-        image: image,
-        price: parseFloat(prod.preco) || 0,
-      });
-    }
+// Atualiza o cache do servidor em background (sem bloquear o cliente)
+async function atualizarCacheServidor() {
+  try {
+    await fetch('/api/bling-cache');
+  } catch(e) {
+    // silencioso
   }
-
-  // Converter pais em array, ordenar variações por tamanho
-  const cards = Object.values(pais).concat(orphans);
-  cards.forEach(c => {
-    c.variacoes.sort((a, b) => {
-      const na = parseInt(a.tamanho) || 0;
-      const nb = parseInt(b.tamanho) || 0;
-      return na - nb;
-    });
-    c.sizes = c.variacoes.map(v => v.tamanho);
-  });
-
-  return cards;
 }
 
-function limparNome(nome) {
-  return nome
-    .replace(/\s*TAMANHO\s*:\s*\d+/gi, '')
-    .replace(/\s*TAM\s*:\s*\d+/gi, '')
-    .replace(/\s*REF\s*:\s*[\w-]+/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function extrairRef(codigo) {
-  // "9029-48" → "9029"
-  return codigo.split('-')[0] || codigo;
-}
-
-function extrairTamanho(nome) {
-  const m = nome.match(/\b(3[68]|4[02468]|50|PP|P\b|M\b|G{1,3}|XG|XL|XXL)\b/i);
-  return m ? m[1].toUpperCase() : '';
-}
-
-function detectarCategoria(nome) {
-  const n = (nome || '').toLowerCase();
-  if (n.includes('bermuda'))                              return 'bermuda';
-  if (n.includes('alfaiataria') || n.includes('social')) return 'alfaiataria';
-  if (n.includes('skinny') || n.includes('slim'))        return 'skinny';
-  if (n.includes('reta') || n.includes('regular'))       return 'reta';
-  return 'skinny';
-}
-
-async function fetchTodosProdutos() {
-  let pagina = 1;
-  let todos = [];
-  while (true) {
-    const data = await blingFetch('/produtos', { situacao: 'A', limite: 100, pagina });
-    const items = data.data || [];
-    console.log(`Página ${pagina}: ${items.length} produtos`);
-    todos = todos.concat(items);
-    if (items.length < 100) break;
-    pagina++;
-    // Pequena pausa para não sobrecarregar a API
-    await new Promise(r => setTimeout(r, 300));
-  }
-  console.log(`Total de produtos carregados: ${todos.length}`);
-  return todos;
-}
 
 function mostrarLoadingCatalogo(show) {
   let el = document.getElementById('blingLoader');
