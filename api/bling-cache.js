@@ -47,11 +47,20 @@ async function fetchTodosProdutos(token) {
     const paiId = prod.variacao?.produtoPai?.id;
     if (!paiId) continue;
     if (!grupos[paiId]) {
+      // Detectar categoria pelo nome do produto
+      const nomeCompleto = prod.nome || '';
+      let category = 'outros';
+      const nomeLower = nomeCompleto.toLowerCase();
+      if (nomeLower.includes('skinny')) category = 'skinny';
+      else if (nomeLower.includes('alfaiataria')) category = 'alfaiataria';
+      else if (nomeLower.includes('bermuda')) category = 'bermuda';
+      else if (nomeLower.includes('reta')) category = 'reta';
+
       grupos[paiId] = {
         id: paiId,
-        name: prod.nome?.replace(/\s*TAMANHO:\s*\S+/gi, '').trim() || prod.nome,
+        name: nomeCompleto.replace(/\s*TAMANHO:\s*\S+/gi, '').trim(),
         ref: (prod.codigo || '').split('-')[0],
-        categoria: prod.categoria?.nome || '',
+        category,
         price: prod.preco || 0,
         image: prod.midia?.imagens?.internas?.[0]?.link || '',
         variacoes: []
