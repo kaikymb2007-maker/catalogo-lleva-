@@ -468,6 +468,7 @@ input,button,textarea{font-family:var(--fonte)}
     <div class="drw-body" id="drwBody"><div class="drw-empty"><div class="drw-empty-ico">👖</div>Nenhum produto adicionado ainda.</div></div>
     <div class="drw-foot">
       <div class="drw-total"><span class="drw-total-lbl">Total estimado</span><span class="drw-total-val" id="totVal">R$ 0,00</span></div>
+      <div id="minAviso" style="font-size:10px;color:#c0392b;font-weight:700;letter-spacing:.5px;text-align:center;padding:.4rem;display:none">⚠️ Mínimo de 18 peças no pedido</div>
       <div class="buyer-box" id="buyerBox"></div>
       <div class="fld"><label>Observações</label><textarea id="bNotes" placeholder="Tamanhos, cores preferidas, prazo..."></textarea></div>
       <button class="btn-send" id="btnSend" onclick="enviar()">ENVIAR AO VENDEDOR →</button>
@@ -926,7 +927,7 @@ function render(){
           <span class="sz-total-lbl">Total: <span id="sq-tot-${p.id}">0</span> un</span>
           <span class="sz-total-val" id="sq-val-${p.id}">R$ 0,00</span>
         </div>
-        <div class="sz-min-warn" id="sq-warn-${p.id}">⚠ Mínimo ${QTD_MIN} unidades no total</div>
+        <div class="sz-min-warn" id="sq-warn-${p.id}">⚠ Mínimo ${QTD_MIN} unidades no pedido total</div>
         <button class="p-add" id="ab-${p.id}" onclick="addCart(${p.id})">+ ADICIONAR À SELEÇÃO</button>
       </div>
     </div>`;
@@ -955,7 +956,6 @@ function addCart(id){
   const qtds=getSzQtds(id);
   const tot=Object.values(qtds).reduce((a,b)=>a+b,0);
   if(tot===0){alert('Informe a quantidade em pelo menos um tamanho.');return;}
-  if(tot<QTD_MIN){document.getElementById('sq-warn-'+id).classList.add('show');alert('Mínimo de '+QTD_MIN+' unidades. Atual: '+tot+' un.');return;}
   const price=p.price||(p.prices&&p.prices[0].unit)||0;
   const ex=cart.find(c=>c.id==id);
   if(ex){ex.qtds=qtds;ex.tot=tot;ex.unit=price;}
@@ -967,7 +967,11 @@ function addCart(id){
 }
 function rmCart(id){cart=cart.filter(c=>c.id!=id);updCart()}
 function updCart(){
+  const totalPecasCarrinho = cart.reduce((s,c)=>s+c.tot,0);
+  const totalPecasCarrinho = cart.reduce((s,c)=>s+c.tot,0);
   document.getElementById('cartN').textContent=cart.length;
+  const avisoMin = document.getElementById('minAviso');
+  if(avisoMin) avisoMin.style.display = totalPecasCarrinho > 0 && totalPecasCarrinho < QTD_MIN ? 'block' : 'none';
   const body=document.getElementById('drwBody');
   if(!cart.length){body.innerHTML='<div class="drw-empty"><div class="drw-empty-ico">👖</div>Nenhum produto adicionado ainda.</div>';document.getElementById('totVal').textContent='R$ 0,00';return;}
   body.innerHTML=cart.map(c=>{
@@ -981,6 +985,8 @@ function openCart(){document.getElementById('drw').classList.add('on');document.
 function closeCart(){document.getElementById('drw').classList.remove('on');document.getElementById('ov').classList.remove('on')}
 async function enviar(){
   if(!cart.length){alert('Adicione pelo menos um produto.');return}
+  const totalPecas = cart.reduce((s,c) => s + c.tot, 0);
+  if(totalPecas < QTD_MIN){alert('Pedido mínimo de '+QTD_MIN+' peças. Seu pedido tem '+totalPecas+' peças.');return;}
   const btn=document.getElementById('btnSend');btn.textContent='ENVIANDO...';btn.disabled=true;
   try {
     // Montar itens do pedido — um item por tamanho
