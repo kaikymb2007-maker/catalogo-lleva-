@@ -106,8 +106,8 @@ input,button,textarea{font-family:var(--fonte)}
 .f-chip.on{background:var(--preto);color:var(--branco);border-color:var(--preto)}
 .f-count{margin-left:auto;font-size:11px;color:var(--cinza-texto)}
 .cat-main{max-width:1280px;margin:0 auto;padding:1.5rem 2rem 3rem}
-.p-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--cinza-borda)}
-.p-card{background:var(--branco);display:flex;flex-direction:column;animation:fadeUp .3s ease both}
+.p-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--cinza-borda);align-items:start}
+.p-card{background:var(--branco);display:flex;flex-direction:column;animation:fadeUp .3s ease both;height:100%}
 .p-card:hover{transform:translateY(-2px);z-index:2;box-shadow:0 8px 30px rgba(0,0,0,.1);position:relative;transition:transform .2s}
 .p-img{aspect-ratio:3/4;background:var(--cinza-claro);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 .p-img img{width:100%;height:100%;object-fit:cover}
@@ -775,7 +775,8 @@ function render(){
   if(!filtered.length){grid.innerHTML='<div class="no-res">Nenhum produto encontrado.</div>';return}
   grid.innerHTML=filtered.map((p,i)=>{
     const lnk=p.link?`<a class="p-site-link" href="${p.link}" target="_blank">Ver foto</a>`:'';
-    const sizes=p.variacoes&&p.variacoes.length?p.variacoes:(p.sizes&&p.sizes.length?p.sizes.map(s=>({tamanho:s,estoque:99,preco:p.prices?p.prices[0].unit:p.price||0})):['38','40','42','44','46','48'].map(s=>({tamanho:s,estoque:99,preco:p.prices?p.prices[0].unit:p.price||0})));
+    const sizesRaw=p.variacoes&&p.variacoes.length?p.variacoes:(p.sizes&&p.sizes.length?p.sizes.map(s=>({tamanho:s,estoque:99,preco:p.prices?p.prices[0].unit:p.price||0})):['38','40','42','44','46','48'].map(s=>({tamanho:s,estoque:99,preco:p.prices?p.prices[0].unit:p.price||0})));
+    const sizes=[...sizesRaw].sort((a,b)=>parseInt(a.tamanho)-parseInt(b.tamanho));
     const price=p.price||(p.prices&&p.prices[0].unit)||0;
     const imgTag=p.image?`<img src="${p.image}" alt="${p.name}" loading="lazy" />`:`<div class="p-img-ico">${CI[p.category]||'👖'}</div>`;
     const szRows=sizes.map(v=>`<tr>
