@@ -471,21 +471,12 @@ input,button,textarea{font-family:var(--fonte)}
 
 const PROXY = '/api/bling';
 const CACHE_KEY = 'lleva_produtos_cache';
-function proximaExpiracao() {
-  // Expira às 6h da manhã do próximo dia (ou hoje se ainda não passou das 6h)
-  const agora = new Date();
-  const expira = new Date();
-  expira.setHours(6, 0, 0, 0);
-  if (agora >= expira) expira.setDate(expira.getDate() + 1); // já passou das 6h, vai pro próximo dia
-  return expira.getTime();
-}
 
+// Cache sem expiração automática — só limpa ao clicar em "↻ Atualizar"
 function salvarCache(produtos) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      expiraEm: proximaExpiracao(),
-      produtos
-    }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ produtos, salvoEm: Date.now() }));
+    console.log('Cache salvo:', produtos.length, 'produtos');
   } catch(e) { console.warn('Cache não disponível', e); }
 }
 
@@ -493,12 +484,12 @@ function lerCache() {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
-    const { expiraEm, produtos } = JSON.parse(raw);
-    if (Date.now() > expiraEm) {
-      localStorage.removeItem(CACHE_KEY);
-      return null;
+    const { produtos } = JSON.parse(raw);
+    if (Array.isArray(produtos) && produtos.length > 0) {
+      console.log('Cache carregado:', produtos.length, 'produtos');
+      return produtos;
     }
-    return produtos;
+    return null;
   } catch(e) { return null; }
 }
 
