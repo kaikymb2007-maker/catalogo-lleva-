@@ -3,6 +3,8 @@ import { getBlingToken } from './bling-token.js';
 // Cache em memória do servidor — compartilhado entre todos os clientes
 let serverCache = null;
 let cacheTimestamp = 0;
+const CACHE_VERSION = 2; // incrementar para forçar re-fetch
+let cacheVersion = 0;
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h como fallback de segurança
 
 async function fetchTodosProdutos(token) {
@@ -93,7 +95,7 @@ export default async function handler(req, res) {
   const forcar = req.query.forcar === '1';
 
   // Se tem cache válido e não está forçando, retorna imediatamente
-  if (!forcar && serverCache && serverCache.length > 0 && (Date.now() - cacheTimestamp) < CACHE_TTL) {
+  if (!forcar && serverCache && serverCache.length > 0 && cacheVersion === CACHE_VERSION && (Date.now() - cacheTimestamp) < CACHE_TTL) {
     console.log('Cache servidor: retornando', serverCache.length, 'produtos');
     return res.status(200).json({ produtos: serverCache, fonte: 'cache', total: serverCache.length });
   }
@@ -107,6 +109,7 @@ export default async function handler(req, res) {
     if (produtos.length > 0) {
       serverCache = produtos;
       cacheTimestamp = Date.now();
+      cacheVersion = CACHE_VERSION;
       console.log('Cache servidor atualizado:', produtos.length, 'produtos');
     }
 
