@@ -76,7 +76,13 @@ async function fetchTodosProdutos(token) {
     });
   }
 
-  return Object.values(grupos).filter(p => p.variacoes.length > 0);
+  // Ordenar variações por tamanho numericamente
+  return Object.values(grupos)
+    .filter(p => p.variacoes.length > 0)
+    .map(p => ({
+      ...p,
+      variacoes: [...p.variacoes].sort((a, b) => parseInt(a.tamanho) - parseInt(b.tamanho))
+    }));
 }
 
 export default async function handler(req, res) {
