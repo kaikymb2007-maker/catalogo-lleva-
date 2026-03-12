@@ -76,19 +76,26 @@ async function supabaseUpsert(produtos) {
 // ─── Converter linha do Supabase → formato do catálogo ────────
 function normalizarVariacoes(raw) {
   if (!Array.isArray(raw) || !raw.length) return [];
-  const primeiro = raw[0];
 
-  // Formato novo (salvo pelo nosso código): {id, tamanho, estoque, preco}
-  if ('tamanho' in primeiro) return raw;
-
-  // Formato antigo (já existia no Supabase): {Codigo, saldoVirtualTotal}
-  // Codigo é tipo "9097-38" — extrair o tamanho da parte depois do hífen
-  return raw.map(v => ({
-    id: v.id || v.Codigo || '',
-    tamanho: String(v.tamanho || v.Codigo || '').split('-').pop(),
-    estoque: v.estoque ?? v.saldoVirtualTotal ?? 0,
-    preco: v.preco || v.Preco || 0
-  }));
+  return raw.map(v => {
+    // Formato Supabase existente: {Codigo: "5046-38", saldoVirtualTotal: 17}
+    if (v.Codigo !== undefined) {
+      const partes = String(v.Codigo).split('-');
+      return {
+        id: v.Codigo,
+        tamanho: partes[partes.length - 1], // pega última parte: "38", "40", etc
+        estoque: v.saldoVirtualTotal || 0,
+        preco: 0
+      };
+    }
+    // Formato novo: {id, tamanho, estoque, preco}
+    return {
+      id: v.id || '',
+      tamanho: String(v.tamanho || ''),
+      estoque: v.estoque || 0,
+      preco: v.preco || 0
+    };
+  }).filter(v => v.tamanho); // remove entradas sem tamanho
 }
 
 function supabaseParaCatalogo(linhas) {
