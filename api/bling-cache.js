@@ -3,13 +3,14 @@ import { getBlingToken } from './bling-token.js';
 const SUPABASE_URL = 'https://demspfxcneotrllfizwe.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-let memCache = null;
-let memCacheTimestamp = 0;
-const MEM_CACHE_TTL = 10 * 60 * 1000;
+// Imagens ficam em cache por 24h — mudam raramente
+let imagensCache = {};
+let imagensCacheTimestamp = 0;
+const IMAGENS_TTL = 24 * 60 * 60 * 1000;
 
 async function supabaseGetProdutos() {
   const r = await fetch(
-    `${SUPABASE_URL}/rest/v1/produtos?select=id,nome,codigo,preco,estoque,midia,situacao&situacao=eq.A&order=codigo.asc`,
+    `${SUPABASE_URL}/rest/v1/produtos?select=id,nome,codigo,preco,estoque,situacao&situacao=eq.A&order=codigo.asc`,
     {
       headers: {
         'apikey': SUPABASE_KEY,
@@ -31,7 +32,7 @@ function detectarCategoria(nome = '') {
   return 'outros';
 }
 
-function montarCatalogo(linhas) {
+function montarCatalogo(linhas, imagensMap) {
   const grupos = {};
   for (const row of linhas) {
     const codigo = row.codigo || '';
@@ -46,23 +47,13 @@ function montarCatalogo(linhas) {
       .trim();
     const estoque = row.estoque?.saldoVirtualTotal ?? 0;
     if (!grupos[ref]) {
-      // Verifica se o link do Supabase ainda é válido (Expires no futuro)
-      const rawLink = row.midia?.imagens?.internas?.[0]?.link || '';
-      let imagem = '';
-      if (rawLink) {
-        const expiresMatch = rawLink.match(/Expires=(\d+)/);
-        const expires = expiresMatch ? parseInt(expiresMatch[1]) : 0;
-        const agora = Math.floor(Date.now() / 1000);
-        // Usa o link se ainda válido por mais de 1 hora
-        if (expires > agora + 3600) imagem = rawLink;
-      }
       grupos[ref] = {
         id: row.id,
         name: nomeLimpo,
         ref,
         category: detectarCategoria(nomeLimpo),
         price: row.preco || 0,
-        image: imagem,
+        image: imagensMap[ref] || '',
         variacoes: []
       };
     }
@@ -81,32 +72,45 @@ function montarCatalogo(linhas) {
     }));
 }
 
-async function buscarImagensBling(token, produtos) {
+async function buscarImagensPai(token) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
-  // Só busca imagem do Bling para produtos que não têm imagem válida
-  const semImagem = produtos.filter(p => !p.image);
-  if (!semImagem.length) return produtos;
-
-  const BATCH = 3;
-  for (let i = 0; i < semImagem.length; i += BATCH) {
-    const lote = semImagem.slice(i, i + BATCH);
-    await Promise.all(lote.map(async p => {
-      try {
-        const varId = p.variacoes[0]?.id;
-        if (!varId) return;
-        const r = await fetch(`https://www.bling.com.br/Api/v3/produtos/${varId}`, { headers });
-        const d = await r.json();
-        const paiId = d.data?.variacao?.produtoPai?.id;
-        if (!paiId) return;
-        const r2 = await fetch(`https://www.bling.com.br/Api/v3/produtos/${paiId}`, { headers });
-        const d2 = await r2.json();
-        const link = d2.data?.midia?.imagens?.internas?.[0]?.link || '';
-        if (link) p.image = link;
-      } catch {}
-    }));
-    if (i + BATCH < semImagem.length) await new Promise(res => setTimeout(res, 400));
+  const imagensMap = {};
+  let pagina = 1;
+  while (true) {
+    try {
+      const r = await fetch(
+        `https://www.bling.com.br/Api/v3/produtos?pagina=${pagina}&limite=100&tipo=P&situacao=A`,
+        { headers }
+      );
+      const d = await r.json();
+      const lista = d.data || [];
+      if (!lista.length) break;
+      const BATCH = 5;
+      for (let i = 0; i < lista.length; i += BATCH) {
+        const lote = lista.slice(i, i + BATCH);
+        await Promise.all(lote.map(async p => {
+          try {
+            const r2 = await fetch(`https://www.bling.com.br/Api/v3/produtos/${p.id}`, { headers });
+            const d2 = await r2.json();
+            const prod = d2.data;
+            if (!prod) return;
+            const ref = (prod.codigo || '').trim();
+            const link = prod.midia?.imagens?.internas?.[0]?.link || '';
+            if (ref && link) imagensMap[ref] = link;
+          } catch {}
+        }));
+        if (i + BATCH < lista.length) await new Promise(res => setTimeout(res, 300));
+      }
+      if (lista.length < 100) break;
+      pagina++;
+      await new Promise(res => setTimeout(res, 400));
+    } catch (e) {
+      console.error('Erro buscarImagensPai:', e.message);
+      break;
+    }
   }
-  return produtos;
+  console.log('Imagens buscadas:', Object.keys(imagensMap).length);
+  return imagensMap;
 }
 
 export default async function handler(req, res) {
@@ -116,110 +120,28 @@ export default async function handler(req, res) {
 
   const forcar = req.query.forcar === '1';
 
-  // 1. Cache em memória
-  if (!forcar && memCache && memCache.length > 0 && (Date.now() - memCacheTimestamp) < MEM_CACHE_TTL) {
-    console.log('Cache memória:', memCache.length, 'produtos');
-    return res.status(200).json({ produtos: memCache, fonte: 'memoria', total: memCache.length });
-  }
-
-  // 2. Supabase (estoque) + Bling (imagens)
-  if (SUPABASE_KEY) {
-    try {
-      const linhas = await supabaseGetProdutos();
-      if (linhas && linhas.length > 0) {
-        const produtos = montarCatalogo(linhas);
-        // Busca imagens frescas do Bling
-        const token = await getBlingToken();
-        const produtosComImagem = await buscarImagensBling(token, produtos);
-        memCache = produtosComImagem;
-        memCacheTimestamp = Date.now();
-        console.log('Supabase+Bling imagens:', produtosComImagem.length, 'produtos');
-        return res.status(200).json({ produtos: produtosComImagem, fonte: 'supabase', total: produtosComImagem.length });
-      }
-    } catch (e) {
-      console.error('Supabase GET falhou:', e.message);
-    }
-  }
-
-  // 3. Bling completo — fallback
   try {
-    console.log('Fallback: buscando do Bling...');
-    const token = await getBlingToken();
-    const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
-    let pagina = 1, todos = [];
-    while (true) {
-      const r = await fetch(
-        `https://www.bling.com.br/Api/v3/produtos?pagina=${pagina}&limite=100&tipo=V&situacao=A`,
-        { headers }
-      );
-      const d = await r.json();
-      const lista = d.data || [];
-      todos = todos.concat(lista);
-      if (lista.length < 100) break;
-      pagina++;
-      await new Promise(res => setTimeout(res, 400));
+    // Estoque sempre ao vivo do Supabase
+    const linhas = await supabaseGetProdutos();
+    if (!linhas || !linhas.length) throw new Error('Supabase retornou vazio');
+
+    // Imagens com cache de 24h — só busca no Bling se expirou ou forçado
+    const imagensExpiradas = (Date.now() - imagensCacheTimestamp) > IMAGENS_TTL;
+    if (forcar || imagensExpiradas || !Object.keys(imagensCache).length) {
+      console.log('Buscando imagens do Bling...');
+      const token = await getBlingToken();
+      imagensCache = await buscarImagensPai(token);
+      imagensCacheTimestamp = Date.now();
+    } else {
+      console.log('Imagens do cache (24h)');
     }
-    if (!todos.length) return res.status(200).json({ produtos: [], fonte: 'bling', total: 0 });
-    const BATCH = 3;
-    const detalhes = [];
-    for (let i = 0; i < todos.length; i += BATCH) {
-      const lote = todos.slice(i, i + BATCH);
-      const resultados = await Promise.all(lote.map(async p => {
-        try {
-          const r = await fetch(`https://www.bling.com.br/Api/v3/produtos/${p.id}`, { headers });
-          const d = await r.json();
-          return d.data || null;
-        } catch { return null; }
-      }));
-      detalhes.push(...resultados.filter(Boolean));
-      if (i + BATCH < todos.length) await new Promise(res => setTimeout(res, 400));
-    }
-    const grupos = {};
-    for (const prod of detalhes) {
-      const paiId = prod.variacao?.produtoPai?.id;
-      if (!paiId) continue;
-      if (!grupos[paiId]) {
-        const nome = prod.nome || '';
-        const nomeLower = nome.toLowerCase();
-        const cat = (prod.categoria?.nome || '').toLowerCase();
-        let category = 'outros';
-        if (cat.includes('skinny') || nomeLower.includes('skinny')) category = 'skinny';
-        else if (cat.includes('alfaiataria') || nomeLower.includes('alfaiataria')) category = 'alfaiataria';
-        else if (cat.includes('bermuda') || nomeLower.includes('bermuda')) category = 'bermuda';
-        else if (cat.includes('reta') || nomeLower.includes('reta')) category = 'reta';
-        grupos[paiId] = {
-          id: paiId,
-          name: nome.replace(/\s*TAMANHO:\s*\S+/gi, '').trim(),
-          ref: (prod.codigo || '').split('-')[0],
-          category,
-          price: prod.preco || 0,
-          image: prod.midia?.imagens?.internas?.[0]?.link || '',
-          variacoes: []
-        };
-      }
-      grupos[paiId].variacoes.push({
-        id: prod.id,
-        tamanho: (prod.variacao?.nome || '').replace(/[^0-9]/g, '') || prod.variacao?.nome || '',
-        estoque: Math.max(0, prod.estoque?.saldoVirtualTotal || 0),
-        preco: prod.preco || 0
-      });
-    }
-    const produtos = Object.values(grupos)
-      .filter(p => p.variacoes.length > 0)
-      .map(p => ({
-        ...p,
-        variacoes: [...p.variacoes].sort((a, b) =>
-          parseInt(a.tamanho.replace(/[^0-9]/g, '')) - parseInt(b.tamanho.replace(/[^0-9]/g, ''))
-        )
-      }));
-    memCache = produtos;
-    memCacheTimestamp = Date.now();
-    return res.status(200).json({ produtos, fonte: 'bling', total: produtos.length });
+
+    const produtos = montarCatalogo(linhas, imagensCache);
+    console.log('Produtos:', produtos.length, '| Com imagem:', produtos.filter(p => p.image).length);
+    return res.status(200).json({ produtos, fonte: 'supabase', total: produtos.length });
+
   } catch (e) {
-    console.error('Erro Bling:', e.message);
-    if (memCache?.length > 0) {
-      return res.status(200).json({ produtos: memCache, fonte: 'cache-fallback', total: memCache.length });
-    }
+    console.error('Erro:', e.message);
     return res.status(500).json({ error: e.message });
   }
 }
