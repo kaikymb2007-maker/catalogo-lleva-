@@ -147,9 +147,16 @@ input,button,textarea{font-family:var(--fonte)}
 .sz-table th{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fff;background:var(--preto);padding:.32rem .5rem;text-align:center}
 .sz-table td{border:1px solid var(--borda);padding:0;text-align:center}
 .sz-table td.sz-lbl{font-size:10px;font-weight:700;color:var(--preto);background:#f5f5f5;padding:.28rem .5rem;width:36px}
-.sz-table td.sz-stock{font-size:9px;color:var(--cinza);padding:.28rem .4rem;background:#f5f5f5;border-left:1px solid var(--borda)}
+.sz-table td.sz-stock{font-size:9px;color:var(--cinza);padding:.28rem .4rem;background:#f5f5f5;border-left:1px solid var(--borda);width:52px}
+.sz-stock-val{font-size:9px;color:var(--cinza)}
+.sz-stock-val.ok{color:#2d8a2d;font-weight:700}
+.sz-stock-val.low{color:#e07000;font-weight:700}
+.sz-stock-val.zero{color:#ccc;text-decoration:line-through}
+.sz-table tr.sem-estoque td{opacity:.4}
+.sz-table tr.sem-estoque td.sz-lbl{text-decoration:line-through;color:#aaa}
 .sz-qty{width:100%;border:none;text-align:center;font-family:var(--fonte);font-size:12px;font-weight:700;color:var(--preto);padding:.3rem .3rem;outline:none;background:#fff}
 .sz-qty:focus{background:#f0faf0;border-color:var(--verde)}
+.sz-qty:disabled{background:#f5f5f5;color:#ccc;cursor:not-allowed}
 .sz-total-row{display:flex;justify-content:space-between;align-items:center;margin-top:.55rem;padding-top:.55rem;border-top:1px solid var(--borda)}
 .sz-total-lbl{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--cinza)}
 .sz-total-val{font-size:13px;font-weight:900;color:var(--preto)}
@@ -751,10 +758,17 @@ function render(){
     const sizes=[...sizesRaw].sort((a,b)=>parseInt(a.tamanho)-parseInt(b.tamanho));
     const price=p.price||(p.prices&&p.prices[0].unit)||0;
     const imgTag=p.image?`<img src="${p.image}" alt="${p.name}" loading="lazy" />`:`<div class="p-img-ico">${CI[p.category]||'👖'}</div>`;
-    const szRows=sizes.map(v=>`<tr>
-      <td class="sz-lbl">${v.tamanho||v}</td>
-      <td><input class="sz-qty" type="number" id="sq-${p.id}-${v.tamanho||v}" value="0" min="0" step="1" oninput="updSzTotal(${p.id})" placeholder="0" /></td>
-    </tr>`).join('');
+    const szRows=sizes.map(v=>{
+      const est=v.estoque||0;
+      const semEst=est===0;
+      const stockClass=semEst?'zero':est<=3?'low':'ok';
+      const stockTxt=semEst?'esgotado':est<=99?`${est} disp`:'99+';
+      return `<tr class="${semEst?'sem-estoque':''}">
+        <td class="sz-lbl">${v.tamanho||v}</td>
+        <td class="sz-stock"><span class="sz-stock-val ${stockClass}">${stockTxt}</span></td>
+        <td><input class="sz-qty" type="number" id="sq-${p.id}-${v.tamanho||v}" value="0" min="0" max="${est}" step="1" oninput="updSzTotal(${p.id})" placeholder="0" ${semEst?'disabled':''} /></td>
+      </tr>`;
+    }).join('');
     // Botões mobile por tamanho
     const szBtns=sizes.map(v=>`<button class="sz-mobile-btn" onclick="selSzMobile(${p.id},'${v.tamanho||v}',this)">${v.tamanho||v}</button>`).join('');
     return `<div class="p-card" style="animation-delay:${Math.min(i,15)*0.03}s">
@@ -766,7 +780,7 @@ function render(){
         <div class="p-name">${p.name}</div>
         <div class="p-price-lbl">R$ ${price.toFixed(2)} / un &nbsp;·&nbsp; mín ${QTD_MIN} un</div>
         <table class="sz-table">
-          <thead><tr><th>Tam</th><th>Qtd</th></tr></thead>
+          <thead><tr><th>Tam</th><th>Disp</th><th>Qtd</th></tr></thead>
           <tbody>${szRows}</tbody>
         </table>
         <div class="sz-mobile">${szBtns}</div>
