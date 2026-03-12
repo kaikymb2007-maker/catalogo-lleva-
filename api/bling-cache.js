@@ -1,22 +1,95 @@
 import { getBlingToken } from './bling-token.js';
 
-// Cache em memória do servidor — compartilhado entre todos os clientes
-let serverCache = null;
-let cacheTimestamp = 0;
-const CACHE_VERSION = 2; // incrementar para forçar re-fetch
-let cacheVersion = 0;
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h como fallback de segurança
+const SUPABASE_URL = 'https://demspfxcneotrllfizwe.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const TABELA = 'Catálogo_Produtos';
 
+// Cache em memória (ainda útil para requests na mesma instância)
+let memCache = null;
+let memCacheTimestamp = 0;
+const MEM_CACHE_TTL = 10 * 60 * 1000; // 10min em memória
+
+// ─── Supabase helpers ─────────────────────────────────────────
+async function supabaseGet() {
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/${encodeURIComponent(TABELA)}?select=*`,
+    {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    }
+  );
+  if (!r.ok) throw new Error(`Supabase GET erro: ${r.status}`);
+  return await r.json();
+}
+
+async function supabaseUpsert(produtos) {
+  const linhas = produtos.map(p => ({
+    'Id': String(p.id),
+    'Nome': p.name,
+    'Código': p.ref,
+    'Preco': p.price,
+    'Imagens': p.image ? [p.image] : [],
+    'Variações': p.variacoes
+  }));
+
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/${encodeURIComponent(TABELA)}`,
+    {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify(linhas)
+    }
+  );
+  if (!r.ok) {
+    const err = await r.text();
+    throw new Error(`Supabase UPSERT erro: ${r.status} - ${err}`);
+  }
+  console.log(`Supabase: ${linhas.length} produtos salvos`);
+}
+
+// ─── Converter linha do Supabase → formato do catálogo ────────
+function supabaseParaCatalogo(linhas) {
+  return linhas.map(row => ({
+    id: row['Id'],
+    name: row['Nome'],
+    ref: row['Código'],
+    category: detectarCategoria(row['Nome']),
+    price: row['Preco'],
+    image: Array.isArray(row['Imagens']) ? row['Imagens'][0] || '' : '',
+    variacoes: row['Variações'] || []
+  }));
+}
+
+function detectarCategoria(nome = '') {
+  const n = nome.toLowerCase();
+  if (n.includes('skinny')) return 'skinny';
+  if (n.includes('alfaiataria')) return 'alfaiataria';
+  if (n.includes('bermuda')) return 'bermuda';
+  if (n.includes('reta')) return 'reta';
+  return 'outros';
+}
+
+// ─── Buscar tudo do Bling ─────────────────────────────────────
 async function fetchTodosProdutos(token) {
   const headers = {
     'Authorization': `Bearer ${token}`,
     'Accept': 'application/json'
   };
 
-  // 1. Buscar todas as variações com estoque
   let pagina = 1, todos = [];
   while (true) {
-    const r = await fetch(`https://www.bling.com.br/Api/v3/produtos?pagina=${pagina}&limite=100&tipo=V&situacao=A&estoque=S`, { headers });
+    const r = await fetch(
+      `https://www.bling.com.br/Api/v3/produtos?pagina=${pagina}&limite=100&tipo=V&situacao=A&estoque=S`,
+      { headers }
+    );
     const d = await r.json();
     const lista = d.data || [];
     todos = todos.concat(lista);
@@ -27,7 +100,6 @@ async function fetchTodosProdutos(token) {
 
   if (!todos.length) return [];
 
-  // 2. Buscar detalhes em lotes de 3
   const BATCH = 3;
   const detalhes = [];
   for (let i = 0; i < todos.length; i += BATCH) {
@@ -43,18 +115,15 @@ async function fetchTodosProdutos(token) {
     if (i + BATCH < todos.length) await new Promise(res => setTimeout(res, 400));
   }
 
-  // 3. Agrupar por produto pai
   const grupos = {};
   for (const prod of detalhes) {
     const paiId = prod.variacao?.produtoPai?.id;
     if (!paiId) continue;
     if (!grupos[paiId]) {
-      // Detectar categoria pelo nome do produto
       const nomeCompleto = prod.nome || '';
       const nomeCategoriaBling = (prod.categoria?.nome || '').toLowerCase();
       const nomeLower = nomeCompleto.toLowerCase();
       let category = 'outros';
-      // Tenta pela categoria do Bling primeiro, depois pelo nome
       if (nomeCategoriaBling.includes('skinny') || nomeLower.includes('skinny')) category = 'skinny';
       else if (nomeCategoriaBling.includes('alfaiataria') || nomeLower.includes('alfaiataria')) category = 'alfaiataria';
       else if (nomeCategoriaBling.includes('bermuda') || nomeLower.includes('bermuda')) category = 'bermuda';
@@ -78,15 +147,17 @@ async function fetchTodosProdutos(token) {
     });
   }
 
-  // Ordenar variações por tamanho numericamente
   return Object.values(grupos)
     .filter(p => p.variacoes.length > 0)
     .map(p => ({
       ...p,
-      variacoes: [...p.variacoes].sort((a, b) => parseInt(a.tamanho.replace(/[^0-9]/g,'')) - parseInt(b.tamanho.replace(/[^0-9]/g,'')))
+      variacoes: [...p.variacoes].sort((a, b) =>
+        parseInt(a.tamanho.replace(/[^0-9]/g, '')) - parseInt(b.tamanho.replace(/[^0-9]/g, ''))
+      )
     }));
 }
 
+// ─── Handler principal ────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -94,31 +165,50 @@ export default async function handler(req, res) {
 
   const forcar = req.query.forcar === '1';
 
-  // Se tem cache válido e não está forçando, retorna imediatamente
-  if (!forcar && serverCache && serverCache.length > 0 && cacheVersion === CACHE_VERSION && (Date.now() - cacheTimestamp) < CACHE_TTL) {
-    console.log('Cache servidor: retornando', serverCache.length, 'produtos');
-    return res.status(200).json({ produtos: serverCache, fonte: 'cache', total: serverCache.length });
+  // 1. Cache em memória — mais rápido
+  if (!forcar && memCache && memCache.length > 0 && (Date.now() - memCacheTimestamp) < MEM_CACHE_TTL) {
+    console.log('Cache memória:', memCache.length, 'produtos');
+    return res.status(200).json({ produtos: memCache, fonte: 'memoria', total: memCache.length });
   }
 
-  // Buscar do Bling
+  // 2. Supabase — persistente entre instâncias do servidor
+  if (!forcar && SUPABASE_KEY) {
+    try {
+      const linhas = await supabaseGet();
+      if (linhas && linhas.length > 0) {
+        const produtos = supabaseParaCatalogo(linhas);
+        memCache = produtos;
+        memCacheTimestamp = Date.now();
+        console.log('Cache Supabase:', produtos.length, 'produtos');
+        return res.status(200).json({ produtos, fonte: 'supabase', total: produtos.length });
+      }
+    } catch (e) {
+      console.error('Supabase GET falhou:', e.message);
+      // continua para buscar no Bling
+    }
+  }
+
+  // 3. Bling — fonte verdade, salva no Supabase depois
   try {
     console.log('Buscando produtos do Bling...');
     const token = await getBlingToken();
     const produtos = await fetchTodosProdutos(token);
 
     if (produtos.length > 0) {
-      serverCache = produtos;
-      cacheTimestamp = Date.now();
-      cacheVersion = CACHE_VERSION;
-      console.log('Cache servidor atualizado:', produtos.length, 'produtos');
+      // Salva no Supabase em background (não trava a resposta)
+      if (SUPABASE_KEY) {
+        supabaseUpsert(produtos).catch(e => console.error('Supabase UPSERT falhou:', e.message));
+      }
+      memCache = produtos;
+      memCacheTimestamp = Date.now();
+      console.log('Bling:', produtos.length, 'produtos buscados');
     }
 
     return res.status(200).json({ produtos, fonte: 'bling', total: produtos.length });
-  } catch(e) {
+  } catch (e) {
     console.error('Erro ao buscar produtos:', e.message);
-    // Se tem cache antigo, usa ele
-    if (serverCache && serverCache.length > 0) {
-      return res.status(200).json({ produtos: serverCache, fonte: 'cache-fallback', total: serverCache.length });
+    if (memCache && memCache.length > 0) {
+      return res.status(200).json({ produtos: memCache, fonte: 'cache-fallback', total: memCache.length });
     }
     return res.status(500).json({ error: e.message });
   }
