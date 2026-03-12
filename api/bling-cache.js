@@ -9,7 +9,7 @@ const MEM_CACHE_TTL = 10 * 60 * 1000;
 
 async function supabaseGetProdutos() {
   const r = await fetch(
-    `${SUPABASE_URL}/rest/v1/produtos?select=id,nome,codigo,preco,estoque,situacao&situacao=eq.A&order=codigo.asc`,
+    `${SUPABASE_URL}/rest/v1/produtos?select=id,nome,codigo,preco,estoque,midia,situacao&situacao=eq.A&order=codigo.asc`,
     {
       headers: {
         'apikey': SUPABASE_KEY,
@@ -46,13 +46,23 @@ function montarCatalogo(linhas) {
       .trim();
     const estoque = row.estoque?.saldoVirtualTotal ?? 0;
     if (!grupos[ref]) {
+      // Verifica se o link do Supabase ainda é válido (Expires no futuro)
+      const rawLink = row.midia?.imagens?.internas?.[0]?.link || '';
+      let imagem = '';
+      if (rawLink) {
+        const expiresMatch = rawLink.match(/Expires=(\d+)/);
+        const expires = expiresMatch ? parseInt(expiresMatch[1]) : 0;
+        const agora = Math.floor(Date.now() / 1000);
+        // Usa o link se ainda válido por mais de 1 hora
+        if (expires > agora + 3600) imagem = rawLink;
+      }
       grupos[ref] = {
         id: row.id,
         name: nomeLimpo,
         ref,
         category: detectarCategoria(nomeLimpo),
         price: row.preco || 0,
-        image: '',
+        image: imagem,
         variacoes: []
       };
     }
@@ -73,12 +83,15 @@ function montarCatalogo(linhas) {
 
 async function buscarImagensBling(token, produtos) {
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
-  const BATCH = 5;
-  for (let i = 0; i < produtos.length; i += BATCH) {
-    const lote = produtos.slice(i, i + BATCH);
+  // Só busca imagem do Bling para produtos que não têm imagem válida
+  const semImagem = produtos.filter(p => !p.image);
+  if (!semImagem.length) return produtos;
+
+  const BATCH = 3;
+  for (let i = 0; i < semImagem.length; i += BATCH) {
+    const lote = semImagem.slice(i, i + BATCH);
     await Promise.all(lote.map(async p => {
       try {
-        // Pega o id da primeira variação para buscar o produto pai
         const varId = p.variacoes[0]?.id;
         if (!varId) return;
         const r = await fetch(`https://www.bling.com.br/Api/v3/produtos/${varId}`, { headers });
@@ -91,7 +104,7 @@ async function buscarImagensBling(token, produtos) {
         if (link) p.image = link;
       } catch {}
     }));
-    if (i + BATCH < produtos.length) await new Promise(res => setTimeout(res, 400));
+    if (i + BATCH < semImagem.length) await new Promise(res => setTimeout(res, 400));
   }
   return produtos;
 }
