@@ -66,11 +66,11 @@ function supabaseParaCatalogo(linhas) {
     .map(row => ({
       id: row['Id'],
       name: row['Nome'],
-      ref: row['Código'],
+      ref: row['Codigo'],
       category: detectarCategoria(row['Nome']),
       price: row['Preco'],
       image: Array.isArray(row['Imagens']) ? row['Imagens'][0] || '' : '',
-      variacoes: normalizarVariacoes(row['Variações'] || [])
+      variacoes: normalizarVariacoes(row['Variacoes'] || [])
     }))
     .filter(p => p.variacoes.length > 0);
 }
