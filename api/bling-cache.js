@@ -57,9 +57,11 @@ function montarCatalogo(linhas) {
       .trim();
 
     const estoque = row.estoque?.saldoVirtualTotal ?? 0;
-    const imagem = row.midia?.imagens?.internas?.[0]?.link 
+    // Extrai URL base sem parâmetros de expiração AWS
+    const rawLink = row.midia?.imagens?.internas?.[0]?.link 
       || row.midia?.imagens?.externas?.[0]?.link 
       || '';
+    const imagem = rawLink ? rawLink.split('?')[0] : '';
 
     if (!grupos[ref]) {
       grupos[ref] = {
