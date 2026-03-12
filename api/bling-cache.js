@@ -57,7 +57,9 @@ function montarCatalogo(linhas) {
       .trim();
 
     const estoque = row.estoque?.saldoVirtualTotal ?? 0;
-    const imagem = row.midia?.imagens?.internas?.[0]?.link || '';
+    const imagem = row.midia?.imagens?.internas?.[0]?.link 
+      || row.midia?.imagens?.externas?.[0]?.link 
+      || '';
 
     if (!grupos[ref]) {
       grupos[ref] = {
@@ -72,14 +74,20 @@ function montarCatalogo(linhas) {
     }
 
     // Atualiza imagem se ainda não tem
+    // Atualiza imagem pegando a primeira disponível
     if (!grupos[ref].image && imagem) {
       grupos[ref].image = imagem;
+    }
+    // Também tenta pegar de imagens externas se não tiver interna
+    if (!grupos[ref].image) {
+      const imgExterna = row.midia?.imagens?.externas?.[0]?.link || '';
+      if (imgExterna) grupos[ref].image = imgExterna;
     }
 
     grupos[ref].variacoes.push({
       id: row.id,
       tamanho: tamanho,
-      estoque: estoque,
+      estoque: estoque < 0 ? 0 : estoque,  // negativo = esgotado
       preco: row.preco || 0
     });
   }
