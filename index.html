@@ -141,28 +141,46 @@ input,button,textarea{font-family:var(--fonte)}
 .p-site-link:hover{background:var(--preto);color:#fff}
 .p-body{padding:.9rem;flex:1;display:flex;flex-direction:column;gap:.3rem;border-top:1px solid var(--borda)}
 .p-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;line-height:1.3;color:var(--preto)}
-.p-price-lbl{font-size:13px;color:var(--verde);font-weight:700;margin-top:.2rem}
-.p-estoque{font-size:9px;color:var(--cinza);margin-top:.1rem}
-.sz-table{width:100%;margin-top:.7rem;border-collapse:collapse}
-.sz-table th{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#fff;background:var(--preto);padding:.32rem .5rem;text-align:center}
-.sz-table td{border:1px solid var(--borda);padding:0;text-align:center}
-.sz-table td.sz-lbl{font-size:10px;font-weight:700;color:var(--preto);background:#f5f5f5;padding:.28rem .5rem;width:36px}
-.sz-table td.sz-stock{font-size:9px;color:var(--cinza);padding:.28rem .4rem;background:#f5f5f5;border-left:1px solid var(--borda);width:52px}
-.sz-stock-val{font-size:9px;color:var(--cinza)}
-.sz-stock-val.ok{color:#2d8a2d;font-weight:700}
-.sz-stock-val.low{color:#e07000;font-weight:700}
-.sz-stock-val.zero{color:#ccc;text-decoration:line-through}
-.sz-table tr.sem-estoque td{opacity:.4}
-.sz-table tr.sem-estoque td.sz-lbl{text-decoration:line-through;color:#aaa}
-.sz-qty{width:100%;border:none;text-align:center;font-family:var(--fonte);font-size:12px;font-weight:700;color:var(--preto);padding:.3rem .3rem;outline:none;background:#fff}
-.sz-qty:focus{background:#f0faf0;border-color:var(--verde)}
-.sz-qty:disabled{background:#f5f5f5;color:#ccc;cursor:not-allowed}
-.sz-total-row{display:flex;justify-content:space-between;align-items:center;margin-top:.55rem;padding-top:.55rem;border-top:1px solid var(--borda)}
+.p-price-lbl{font-size:1.15rem;font-weight:800;color:var(--preto);margin-top:.2rem;line-height:1}
+.p-price-sub{font-size:11px;color:var(--cinza);margin-top:.2rem}
+.p-price-sub strong{color:var(--verde);font-weight:700}
+/* Botões de tamanho */
+.sz-label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--cinza);margin:.6rem 0 .4rem}
+.sz-label span{color:var(--preto);font-size:12px;font-weight:800}
+.sz-grid{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.6rem}
+.sz-btn{min-width:46px;height:44px;border:1.5px solid var(--borda);background:#fff;color:var(--preto);font-family:var(--fonte);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1px;padding:0 .4rem;position:relative;transition:all .15s}
+.sz-btn:hover:not(.esgotado){border-color:var(--preto);background:#f5f5f5}
+.sz-btn.sel{border-color:var(--preto);background:var(--preto);color:#fff}
+.sz-btn.sel .sz-btn-disp{color:rgba(255,255,255,.55)}
+.sz-btn.esgotado{cursor:not-allowed;opacity:.38}
+.sz-btn.esgotado::after{content:'';position:absolute;top:50%;left:10%;width:80%;height:1.5px;background:#aaa;transform:rotate(-20deg)}
+.sz-btn-num{font-size:12px;font-weight:700;line-height:1}
+.sz-btn-disp{font-size:8px;color:var(--cinza);font-weight:600;line-height:1}
+.sz-btn-disp.low{color:#e07000;font-weight:700}
+.sz-btn-disp.zero{color:#bbb}
+/* Aviso de estoque */
+.sz-aviso{font-size:11px;font-weight:600;color:#e07000;min-height:18px;margin-bottom:.3rem}
+.sz-aviso.verde{color:var(--verde)}
+/* Bloco de quantidade */
+.sz-qty-bloco{display:none;background:#f7f7f7;border:1px solid var(--borda);padding:.65rem .9rem;margin-bottom:.6rem;align-items:center;gap:.8rem}
+.sz-qty-bloco.show{display:flex}
+.sz-qty-lbl{font-size:11px;font-weight:700;color:var(--preto);flex:1;letter-spacing:.3px}
+.sz-qty-lbl small{display:block;font-size:9px;color:var(--cinza);font-weight:500;margin-top:.15rem}
+.sz-qty-ctrl{display:flex;align-items:center;gap:.35rem}
+.sz-qty-ctrl button{width:28px;height:28px;border:1.5px solid var(--borda);background:#fff;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--preto);transition:all .15s;line-height:1;font-family:var(--fonte)}
+.sz-qty-ctrl button:hover{border-color:var(--preto);background:var(--preto);color:#fff}
+.sz-qty-ctrl input{width:44px;height:28px;border:1.5px solid var(--borda);text-align:center;font-family:var(--fonte);font-size:14px;font-weight:800;color:var(--preto);outline:none;background:#fff}
+.sz-qty-ctrl input:focus{border-color:var(--preto)}
+/* Resumo de seleção */
+.sz-resumo{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.5rem;min-height:0}
+.sz-resumo-tag{background:#f0faf0;border:1px solid #b8ddb8;font-size:10px;font-weight:700;padding:.2rem .5rem;color:var(--verde)}
+/* Total */
+.sz-total-row{display:flex;justify-content:space-between;align-items:baseline;padding:.55rem 0;border-top:1px solid var(--borda);margin-bottom:.4rem}
 .sz-total-lbl{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--cinza)}
-.sz-total-val{font-size:13px;font-weight:900;color:var(--preto)}
-.sz-min-warn{font-size:9px;color:var(--vermelho);margin-top:.3rem;display:none}
+.sz-total-val{font-size:1rem;font-weight:900;color:var(--preto)}
+.sz-min-warn{font-size:9px;color:var(--vermelho);margin-bottom:.3rem;display:none}
 .sz-min-warn.show{display:block}
-.p-add{width:100%;margin-top:.7rem;background:var(--preto);color:#fff;border:none;padding:.65rem;font-size:9px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;cursor:pointer;transition:background .2s}
+.p-add{width:100%;background:var(--preto);color:#fff;border:none;padding:.75rem;font-size:9px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;cursor:pointer;transition:background .2s;font-family:var(--fonte)}
 .p-add:hover,.p-add.ok{background:var(--verde)}
 
 /* OVERLAY + DRAWER */
@@ -758,19 +776,17 @@ function render(){
     const sizes=[...sizesRaw].sort((a,b)=>parseInt(a.tamanho)-parseInt(b.tamanho));
     const price=p.price||(p.prices&&p.prices[0].unit)||0;
     const imgTag=p.image?`<img src="${p.image}" alt="${p.name}" loading="lazy" />`:`<div class="p-img-ico">${CI[p.category]||'👖'}</div>`;
-    const szRows=sizes.map(v=>{
+    // Botões de tamanho com estoque
+    const szBtns=sizes.map(v=>{
       const est=v.estoque||0;
-      const semEst=est===0;
-      const stockClass=semEst?'zero':est<=3?'low':'ok';
-      const stockTxt=semEst?'esgotado':est<=99?`${est} disp`:'99+';
-      return `<tr class="${semEst?'sem-estoque':''}">
-        <td class="sz-lbl">${v.tamanho||v}</td>
-        <td class="sz-stock"><span class="sz-stock-val ${stockClass}">${stockTxt}</span></td>
-        <td><input class="sz-qty" type="number" id="sq-${p.id}-${v.tamanho||v}" value="0" min="0" max="${est}" step="1" oninput="updSzTotal(${p.id})" placeholder="0" ${semEst?'disabled':''} /></td>
-      </tr>`;
+      const esgotado=est===0;
+      const dispClass=esgotado?'zero':est<=3?'low':'';
+      const dispTxt=esgotado?'esgot.':est<=99?est+' disp':'99+';
+      return `<button class="sz-btn ${esgotado?'esgotado':''}" id="szb-${p.id}-${v.tamanho||v}" onclick="${esgotado?'':  `selTam(${p.id},'${v.tamanho||v}',${est})`}">
+        <span class="sz-btn-num">${v.tamanho||v}</span>
+        <span class="sz-btn-disp ${dispClass}">${dispTxt}</span>
+      </button>`;
     }).join('');
-    // Botões mobile por tamanho
-    const szBtns=sizes.map(v=>`<button class="sz-mobile-btn" onclick="selSzMobile(${p.id},'${v.tamanho||v}',this)">${v.tamanho||v}</button>`).join('');
     return `<div class="p-card" style="animation-delay:${Math.min(i,15)*0.03}s">
       <div class="p-img">${imgTag}<div class="p-img-grad"></div>
         <span class="p-cat-tag ${CV[p.category]||''}">${CT[p.category]||p.category}</span>
@@ -778,17 +794,22 @@ function render(){
       </div>
       <div class="p-body">
         <div class="p-name">${p.name}</div>
-        <div class="p-price-lbl">R$ ${price.toFixed(2)} / un &nbsp;·&nbsp; mín ${QTD_MIN} un</div>
-        <table class="sz-table">
-          <thead><tr><th>Tam</th><th>Disp</th><th>Qtd</th></tr></thead>
-          <tbody>${szRows}</tbody>
-        </table>
-        <div class="sz-mobile">${szBtns}</div>
-        <div class="sz-mobile-qty" id="sq-mob-${p.id}">
-          <span class="sz-mobile-qty-lbl" id="sq-mob-lbl-${p.id}">Tam —</span>
-          <input type="number" id="sq-mob-inp-${p.id}" value="0" min="0" step="1" placeholder="0" oninput="updSzMobile(${p.id})" style="width:55px;border:1px solid var(--cinza-borda);text-align:center;font-family:var(--fonte);font-size:14px;font-weight:700;padding:.3rem;outline:none" />
-          <span style="font-size:9px;color:var(--cinza-texto)">un</span>
+        <div class="p-price-lbl">R$ ${price.toFixed(2)}</div>
+        <div class="p-price-sub">Atacado &nbsp;·&nbsp; <strong>mín ${QTD_MIN} un</strong></div>
+        <div class="sz-label">TAMANHO: <span id="sz-lbl-${p.id}">—</span></div>
+        <div class="sz-grid">${szBtns}</div>
+        <div class="sz-aviso" id="sz-av-${p.id}"></div>
+        <div class="sz-qty-bloco" id="sz-qty-${p.id}">
+          <div class="sz-qty-lbl">Qtd <span id="sz-tam-lbl-${p.id}">—</span>
+            <small id="sz-disp-lbl-${p.id}"></small>
+          </div>
+          <div class="sz-qty-ctrl">
+            <button onclick="alterarQty(${p.id},-1)">−</button>
+            <input type="number" id="sq-${p.id}-inp" value="0" min="0" oninput="setQty(${p.id},this.value)">
+            <button onclick="alterarQty(${p.id},1)">+</button>
+          </div>
         </div>
+        <div class="sz-resumo" id="sz-resumo-${p.id}"></div>
         <div class="sz-total-row">
           <span class="sz-total-lbl">Total: <span id="sq-tot-${p.id}">0</span> un</span>
           <span class="sz-total-val" id="sq-val-${p.id}">R$ 0,00</span>
@@ -799,10 +820,87 @@ function render(){
     </div>`;
   }).join('');
 }
-function updSzTotal(id){
+// Estado dos tamanhos selecionados por produto
+const szEstado = {}; // {prodId: {tamSel, qtds:{tam:qty}}}
+
+function getSzEstado(id){
+  if(!szEstado[id]) szEstado[id]={tamSel:null,qtds:{}};
+  return szEstado[id];
+}
+
+function selTam(id, tam, est){
   const p=window.AP.find(x=>x.id==id);if(!p)return;
-  const sizes=p.variacoes&&p.variacoes.length?p.variacoes.map(v=>v.tamanho):(p.sizes&&p.sizes.length?p.sizes:['38','40','42','44','46','48']);
-  let tot=0;sizes.forEach(s=>{tot+=parseInt(document.getElementById('sq-'+id+'-'+s)?.value)||0;});
+  const e=getSzEstado(id);
+  e.tamSel=tam;
+
+  // Atualizar visual dos botões
+  p.variacoes.forEach(v=>{
+    const btn=document.getElementById('szb-'+id+'-'+v.tamanho);
+    if(btn) btn.classList.toggle('sel', v.tamanho===tam);
+  });
+
+  // Label do tamanho selecionado
+  const lbl=document.getElementById('sz-lbl-'+id);
+  if(lbl) lbl.textContent=tam;
+
+  // Aviso de estoque
+  const av=document.getElementById('sz-av-'+id);
+  if(av){
+    if(est<=3&&est>0){av.textContent='⚠ Só restam '+est+' em estoque!';av.className='sz-aviso';}
+    else if(est>3){av.textContent=est+' unidades disponíveis';av.className='sz-aviso verde';}
+    else{av.textContent='';}
+  }
+
+  // Mostrar bloco de qtd
+  const bloco=document.getElementById('sz-qty-'+id);
+  if(bloco) bloco.classList.add('show');
+  const tamLbl=document.getElementById('sz-tam-lbl-'+id);
+  if(tamLbl) tamLbl.textContent='tam '+tam;
+  const dispLbl=document.getElementById('sz-disp-lbl-'+id);
+  if(dispLbl) dispLbl.textContent=est+' disponíveis em estoque';
+
+  // Preencher input com qtd já digitada para esse tamanho
+  const inp=document.getElementById('sq-'+id+'-inp');
+  if(inp){inp.value=e.qtds[tam]||0;inp.max=est;inp.focus();}
+}
+
+function setQty(id, val){
+  const e=getSzEstado(id);
+  const tam=e.tamSel;if(!tam)return;
+  const v=Math.max(0,parseInt(val)||0);
+  e.qtds[tam]=v;
+  updSzTotal(id);
+  updResumo(id);
+}
+
+function alterarQty(id, delta){
+  const e=getSzEstado(id);
+  const tam=e.tamSel;if(!tam)return;
+  const inp=document.getElementById('sq-'+id+'-inp');
+  const atual=parseInt(inp?.value)||0;
+  const p=window.AP.find(x=>x.id==id);
+  const sz=p?.variacoes?.find(v=>v.tamanho===tam);
+  const max=sz?sz.estoque:99;
+  const novo=Math.max(0,Math.min(max,atual+delta));
+  if(inp) inp.value=novo;
+  setQty(id,novo);
+}
+
+function updResumo(id){
+  const e=getSzEstado(id);
+  const r=document.getElementById('sz-resumo-'+id);
+  if(!r)return;
+  r.innerHTML=Object.entries(e.qtds)
+    .filter(([,q])=>q>0)
+    .sort((a,b)=>parseInt(a[0])-parseInt(b[0]))
+    .map(([t,q])=>`<span class="sz-resumo-tag">Tam ${t}: ${q} un</span>`)
+    .join('');
+}
+
+function updSzTotal(id){
+  const e=getSzEstado(id);
+  const p=window.AP.find(x=>x.id==id);if(!p)return;
+  const tot=Object.values(e.qtds).reduce((a,b)=>a+b,0);
   const price=p.price||(p.prices&&p.prices[0].unit)||0;
   const el=document.getElementById('sq-tot-'+id);
   const elv=document.getElementById('sq-val-'+id);
@@ -811,11 +909,10 @@ function updSzTotal(id){
   if(elv)elv.textContent='R$ '+(tot*price).toLocaleString('pt-BR',{minimumFractionDigits:2});
   if(warn)warn.classList.toggle('show',tot>0&&tot<QTD_MIN);
 }
+
 function getSzQtds(id){
-  const p=window.AP.find(x=>x.id==id);
-  const sizes=p.variacoes&&p.variacoes.length?p.variacoes.map(v=>v.tamanho):(p.sizes&&p.sizes.length?p.sizes:['38','40','42','44','46','48']);
-  const qtds={};sizes.forEach(s=>{const v=parseInt(document.getElementById('sq-'+id+'-'+s)?.value)||0;if(v>0)qtds[s]=v;});
-  return qtds;
+  const e=getSzEstado(id);
+  return Object.fromEntries(Object.entries(e.qtds).filter(([,q])=>q>0));
 }
 function addCart(id){
   const p=window.AP.find(x=>x.id==id);
@@ -891,30 +988,7 @@ async function enviar(){
 }
 function fecharModal(){document.getElementById('modalBg').classList.remove('on')}
 
-let szMobileAtual = {}; // {prodId: tamanho selecionado}
 
-function selSzMobile(id, tam, btn) {
-  // Desselecionar outros botões do mesmo produto
-  const card = btn.closest('.p-card');
-  card.querySelectorAll('.sz-mobile-btn').forEach(b => b.classList.remove('sel'));
-  btn.classList.add('sel');
-  szMobileAtual[id] = tam;
-  // Mostrar campo de quantidade
-  const qtyDiv = document.getElementById('sq-mob-'+id);
-  const lbl = document.getElementById('sq-mob-lbl-'+id);
-  qtyDiv.classList.add('show');
-  lbl.textContent = 'Tam '+tam+':';
-  document.getElementById('sq-mob-inp-'+id).focus();
-}
-
-function updSzMobile(id) {
-  const tam = szMobileAtual[id];
-  if (!tam) return;
-  const val = document.getElementById('sq-mob-inp-'+id).value;
-  // Sincronizar com input da tabela desktop
-  const inp = document.getElementById('sq-'+id+'-'+tam);
-  if (inp) { inp.value = val; updSzTotal(id); }
-}
 
 
 function abrirVendedores(){document.getElementById('wppModalBg').classList.add('on');}
