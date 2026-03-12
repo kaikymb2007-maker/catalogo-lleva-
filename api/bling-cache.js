@@ -10,6 +10,23 @@ let memCacheTimestamp = 0;
 const MEM_CACHE_TTL = 10 * 60 * 1000; // 10min em memória
 
 // ─── Supabase helpers ─────────────────────────────────────────
+async function supabaseGetComTimestamp() {
+  // Busca também a data de atualização mais recente
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/${encodeURIComponent(TABELA)}?select=*&order=atualizado_em.desc&limit=1`,
+    {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    }
+  );
+  if (!r.ok) return null;
+  const rows = await r.json();
+  return rows?.[0]?.atualizado_em || null;
+}
+
 async function supabaseGet() {
   const r = await fetch(
     `${SUPABASE_URL}/rest/v1/${encodeURIComponent(TABELA)}?select=*`,
@@ -32,7 +49,8 @@ async function supabaseUpsert(produtos) {
     'Código': p.ref,
     'Preco': p.price,
     'Imagens': p.image ? [p.image] : [],
-    'Variações': p.variacoes
+    'Variações': p.variacoes,
+    'atualizado_em': new Date().toISOString()
   }));
 
   const r = await fetch(
@@ -56,6 +74,23 @@ async function supabaseUpsert(produtos) {
 }
 
 // ─── Converter linha do Supabase → formato do catálogo ────────
+function normalizarVariacoes(raw) {
+  if (!Array.isArray(raw) || !raw.length) return [];
+  const primeiro = raw[0];
+
+  // Formato novo (salvo pelo nosso código): {id, tamanho, estoque, preco}
+  if ('tamanho' in primeiro) return raw;
+
+  // Formato antigo (já existia no Supabase): {Codigo, saldoVirtualTotal}
+  // Codigo é tipo "9097-38" — extrair o tamanho da parte depois do hífen
+  return raw.map(v => ({
+    id: v.id || v.Codigo || '',
+    tamanho: String(v.tamanho || v.Codigo || '').split('-').pop(),
+    estoque: v.estoque ?? v.saldoVirtualTotal ?? 0,
+    preco: v.preco || v.Preco || 0
+  }));
+}
+
 function supabaseParaCatalogo(linhas) {
   return linhas.map(row => ({
     id: row['Id'],
@@ -64,7 +99,7 @@ function supabaseParaCatalogo(linhas) {
     category: detectarCategoria(row['Nome']),
     price: row['Preco'],
     image: Array.isArray(row['Imagens']) ? row['Imagens'][0] || '' : '',
-    variacoes: row['Variações'] || []
+    variacoes: normalizarVariacoes(row['Variações'] || [])
   }));
 }
 
@@ -87,7 +122,7 @@ async function fetchTodosProdutos(token) {
   let pagina = 1, todos = [];
   while (true) {
     const r = await fetch(
-      `https://www.bling.com.br/Api/v3/produtos?pagina=${pagina}&limite=100&tipo=V&situacao=A&estoque=S`,
+      `https://www.bling.com.br/Api/v3/produtos?pagina=${pagina}&limite=100&tipo=V&situacao=A`,
       { headers }
     );
     const d = await r.json();
@@ -172,15 +207,25 @@ export default async function handler(req, res) {
   }
 
   // 2. Supabase — persistente entre instâncias do servidor
+  // Verifica se o cache do Supabase está dentro de 1h
+  const SUPABASE_TTL = 60 * 60 * 1000; // 1 hora
   if (!forcar && SUPABASE_KEY) {
     try {
-      const linhas = await supabaseGet();
-      if (linhas && linhas.length > 0) {
-        const produtos = supabaseParaCatalogo(linhas);
-        memCache = produtos;
-        memCacheTimestamp = Date.now();
-        console.log('Cache Supabase:', produtos.length, 'produtos');
-        return res.status(200).json({ produtos, fonte: 'supabase', total: produtos.length });
+      // Checar quando foi a última atualização
+      const ultimaAtualizacao = await supabaseGetComTimestamp();
+      const supabaseValido = ultimaAtualizacao && (Date.now() - new Date(ultimaAtualizacao).getTime()) < SUPABASE_TTL;
+
+      if (supabaseValido) {
+        const linhas = await supabaseGet();
+        if (linhas && linhas.length > 0) {
+          const produtos = supabaseParaCatalogo(linhas);
+          memCache = produtos;
+          memCacheTimestamp = Date.now();
+          console.log('Cache Supabase válido:', produtos.length, 'produtos');
+          return res.status(200).json({ produtos, fonte: 'supabase', total: produtos.length });
+        }
+      } else {
+        console.log('Cache Supabase expirado (>1h), buscando do Bling...');
       }
     } catch (e) {
       console.error('Supabase GET falhou:', e.message);
