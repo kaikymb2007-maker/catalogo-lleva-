@@ -2,7 +2,7 @@ import { getBlingToken } from './bling-token.js';
 
 const SUPABASE_URL = 'https://demspfxcneotrllfizwe.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const TABELA = 'Catálogo_Produtos';
+const TABELA = 'Catalogo_Produtos';
 
 // Cache em memória — 10min
 let memCache = null;
