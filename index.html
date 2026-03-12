@@ -501,6 +501,20 @@ input,button,textarea{font-family:var(--fonte)}
 
 <script>
 // ══════════════════════════════════════════
+// VERSÃO DO APP — incrementar aqui para forçar reload em todos os dispositivos
+const VERSAO_APP = '2.0';
+(function() {
+  const salva = localStorage.getItem('lleva_versao');
+  if (salva && salva !== VERSAO_APP) {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('lleva_versao', VERSAO_APP);
+    window.location.reload(true);
+  } else {
+    localStorage.setItem('lleva_versao', VERSAO_APP);
+  }
+})();
+// ══════════════════════════════════════════
 // INTEGRAÇÃO BLING — via Netlify Function (sem CORS)
 // Cache local de 24 horas para carregamento instantâneo
 // ══════════════════════════════════════════
