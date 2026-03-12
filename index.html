@@ -523,7 +523,7 @@ const VERSAO_APP = '2.0';
 // ══════════════════════════════════════════
 
 const PROXY = '/api/bling';
-const CACHE_KEY = 'lleva_produtos_v2';
+const CACHE_KEY = 'lleva_produtos_v3'; // v3: inclui imagens do sync
 
 // Cache sem expiração automática — só limpa ao clicar em "↻ Atualizar"
 function salvarCache(produtos) {
@@ -542,8 +542,11 @@ function lerCache() {
     // Invalida cache antigo sem IDs nas variações ou sem category
     const temId = produtos.some(p => p.variacoes?.some(v => v.id));
     const temCategory = produtos.every(p => p.category && p.category !== 'undefined');
-    if (!temId || !temCategory) {
-      console.log('Cache antigo inválido — invalidando...');
+    // Invalida cache se menos de 30% dos produtos tiverem imagem (sync foi rodado após o cache)
+    const comImagem = produtos.filter(p => p.image && p.image.length > 0).length;
+    const percImagem = comImagem / produtos.length;
+    if (!temId || !temCategory || percImagem < 0.3) {
+      console.log('Cache antigo inválido — invalidando... (imagens:', comImagem, '/', produtos.length, ')');
       localStorage.removeItem(CACHE_KEY);
       return null;
     }
