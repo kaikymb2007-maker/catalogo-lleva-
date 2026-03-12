@@ -4,14 +4,12 @@ const SUPABASE_URL = 'https://demspfxcneotrllfizwe.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 async function supabaseGetVariacoes() {
-  // Busca variações (codigo com traço) — estoque ao vivo
   const r = await fetch(
-    `${SUPABASE_URL}/rest/v1/produtos?select=id,nome,codigo,preco,estoque,situacao&situacao=eq.A&codigo=like.*-*&order=codigo.asc`,
+    `${SUPABASE_URL}/rest/v1/produtos?select=id,nome,codigo,preco,estoque&situacao=eq.A&codigo=like.*-*&order=codigo.asc`,
     {
       headers: {
         'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${SUPABASE_KEY}`
       }
     }
   );
@@ -19,29 +17,21 @@ async function supabaseGetVariacoes() {
   return await r.json();
 }
 
-async function supabaseGetPais() {
-  // Busca produtos pai (codigo SEM traço) — para pegar imagem fresca
+async function supabaseGetImagens() {
   const r = await fetch(
-    `${SUPABASE_URL}/rest/v1/produtos?select=codigo,midia&situacao=eq.A&codigo=not.like.*-*`,
+    `${SUPABASE_URL}/rest/v1/imagens_produtos?select=ref,link`,
     {
       headers: {
         'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${SUPABASE_KEY}`
       }
     }
   );
-  if (!r.ok) throw new Error(`Supabase pais erro: ${r.status}`);
-  return await r.json();
-}
-
-function linkValido(link) {
-  if (!link) return false;
-  const match = link.match(/Expires=(\d+)/);
-  if (!match) return true;
-  const expires = parseInt(match[1]);
-  const agora = Math.floor(Date.now() / 1000);
-  return expires > agora + 3600;
+  if (!r.ok) throw new Error(`Supabase imagens erro: ${r.status}`);
+  const rows = await r.json();
+  const map = {};
+  for (const row of rows) map[row.ref] = row.link;
+  return map;
 }
 
 function detectarCategoria(nome = '') {
@@ -53,40 +43,21 @@ function detectarCategoria(nome = '') {
   return 'outros';
 }
 
-async function renovarImagemBling(token, varId) {
-  try {
-    const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
-    const r = await fetch(`https://www.bling.com.br/Api/v3/produtos/${varId}`, { headers });
-    const d = await r.json();
-    return d.data?.midia?.imagens?.internas?.[0]?.link || '';
-  } catch { return ''; }
-}
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // Busca variações e produtos pai em paralelo
-    const [variacoes, pais] = await Promise.all([
+    // Busca estoque e imagens em paralelo — tudo do Supabase, instantâneo
+    const [variacoes, imagensMap] = await Promise.all([
       supabaseGetVariacoes(),
-      supabaseGetPais()
+      supabaseGetImagens()
     ]);
 
     if (!variacoes?.length) throw new Error('Supabase retornou vazio');
 
-    // Monta mapa ref -> imagem válida a partir dos produtos pai
-    const imagensMap = {};
-    for (const pai of (pais || [])) {
-      const ref = (pai.codigo || '').trim();
-      if (!ref) continue;
-      const link = pai.midia?.imagens?.internas?.[0]?.link || '';
-      if (linkValido(link)) imagensMap[ref] = link;
-    }
-    console.log('Imagens válidas do Supabase:', Object.keys(imagensMap).length);
-
-    // Monta catálogo agrupando variações por ref
+    // Monta catálogo agrupando por ref
     const grupos = {};
     for (const row of variacoes) {
       const codigo = row.codigo || '';
@@ -119,33 +90,15 @@ export default async function handler(req, res) {
       });
     }
 
-    let produtos = Object.values(grupos)
+    const produtos = Object.values(grupos)
       .filter(p => p.variacoes.length > 0)
       .map(p => ({
         ...p,
         variacoes: [...p.variacoes].sort((a, b) => parseInt(a.tamanho) - parseInt(b.tamanho))
       }));
 
-    // Renova imagens expiradas via Bling (só os que precisam)
-    const semImagem = produtos.filter(p => !p.image);
-    if (semImagem.length > 0) {
-      console.log('Renovando', semImagem.length, 'imagens via Bling...');
-      const token = await getBlingToken();
-      const BATCH = 3;
-      for (let i = 0; i < semImagem.length; i += BATCH) {
-        const lote = semImagem.slice(i, i + BATCH);
-        await Promise.all(lote.map(async p => {
-          const varId = p.variacoes[0]?.id;
-          if (!varId) return;
-          const link = await renovarImagemBling(token, varId);
-          if (link) p.image = link;
-        }));
-        if (i + BATCH < semImagem.length) await new Promise(res => setTimeout(res, 350));
-      }
-    }
-
     const comImagem = produtos.filter(p => p.image).length;
-    console.log('Total:', produtos.length, '| Com imagem:', comImagem, '| Sem:', produtos.length - comImagem);
+    console.log('Total:', produtos.length, '| Com imagem:', comImagem);
     return res.status(200).json({ produtos, fonte: 'supabase', total: produtos.length });
 
   } catch (e) {
