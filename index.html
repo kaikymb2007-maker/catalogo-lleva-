@@ -243,6 +243,20 @@ input,button,textarea{font-family:var(--fonte)}
 .wpp-fab{position:fixed;bottom:1.5rem;right:1.5rem;z-index:599;background:#25D366;color:#fff;border:none;padding:.75rem 1.2rem;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;gap:.55rem;box-shadow:0 4px 20px rgba(0,0,0,.2);transition:all .2s;font-family:var(--fonte)}
 .wpp-fab svg{width:18px;height:18px;flex-shrink:0}
 .wpp-fab:hover{background:#128C7E;transform:translateY(-2px)}
+/* MODAL VENDEDORES */
+.wpp-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:800;align-items:center;justify-content:center;padding:1rem}
+.wpp-modal-bg.on{display:flex}
+.wpp-modal{background:#fff;width:100%;max-width:380px;padding:2rem;position:relative;border-top:3px solid #25D366;box-shadow:0 8px 40px rgba(0,0,0,.2)}
+.wpp-modal-close{position:absolute;top:.8rem;right:.8rem;background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--cinza);line-height:1}
+.wpp-modal-close:hover{color:var(--preto)}
+.wpp-modal-title{font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--preto);margin-bottom:.3rem}
+.wpp-modal-sub{font-size:12px;color:var(--cinza);margin-bottom:1.2rem;line-height:1.5}
+.wpp-vendor{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1rem;border:1px solid var(--borda);margin-bottom:.5rem;text-decoration:none;transition:all .15s;background:#fff}
+.wpp-vendor:last-child{margin-bottom:0}
+.wpp-vendor:hover{border-color:#25D366;background:#f0faf0}
+.wpp-vendor-name{font-size:13px;font-weight:700;color:var(--preto)}
+.wpp-vendor-lbl{font-size:10px;color:var(--cinza);margin-top:.1rem;letter-spacing:.5px}
+.wpp-vendor-ico{background:#25D366;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0}
 .wpp-drop{display:none;position:absolute;bottom:3.2rem;right:0;background:#fff;border:1px solid var(--borda);min-width:200px;box-shadow:0 4px 20px rgba(0,0,0,.1)}
 .wpp-drop.on{display:block}
 .wpp-item{display:block;padding:.7rem 1rem;font-size:11px;font-weight:600;color:var(--preto);text-decoration:none;border-bottom:1px solid var(--borda)}
