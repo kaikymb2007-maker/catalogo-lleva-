@@ -567,33 +567,15 @@ async function blingFetch(path, params = {}) {
 }
 
 async function carregarProdutosBling(forcar = false) {
-  // 1. Cache local — carrega instantaneamente se disponível e não está forçando
-  if (!forcar) {
-    const cached = lerCache();
-    if (cached && cached.length) {
-      window.AP = cached;
-      document.getElementById('pCount').textContent = cached.length + ' produto' + (cached.length !== 1 ? 's' : '');
-      document.getElementById('wQtd').textContent = cached.length;
-      render();
-      // Atualiza cache do servidor em background silenciosamente
-      atualizarCacheServidor();
-      return;
-    }
-  }
-
   mostrarLoadingCatalogo(true);
   try {
-    const url = forcar ? '/api/bling-cache?forcar=1' : '/api/bling-cache';
-    const r = await fetch(url);
+    const r = await fetch('/api/bling-cache');
     if (!r.ok) throw new Error('Erro ao buscar produtos');
     const { produtos } = await r.json();
-
     if (!produtos || !produtos.length) {
       mostrarErroCatalogo('Nenhum produto encontrado.');
       return;
     }
-
-    salvarCache(produtos);
     window.AP = produtos;
     document.getElementById('pCount').textContent = produtos.length + ' produto' + (produtos.length !== 1 ? 's' : '');
     document.getElementById('wQtd').textContent = produtos.length;
