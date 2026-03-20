@@ -33,7 +33,6 @@ function detectarCategoria(nome = '') {
   return 'outros';
 }
 
-// REF válida: apenas números, entre 1 e 4 dígitos (ex: 001, 9003, 100)
 function refValida(ref) {
   return /^\d{1,4}$/.test(ref);
 }
@@ -61,7 +60,6 @@ export default async function handler(req, res) {
       const ref = partes.slice(0, partes.length - 1).join('-');
       if (!ref || !tamanho) continue;
 
-      // Filtro 1: REF deve ser apenas números com 1 a 4 dígitos
       if (!refValida(ref)) continue;
 
       const nomeLimpo = (row.nome || '')
@@ -86,4 +84,22 @@ export default async function handler(req, res) {
       grupos[ref].variacoes.push({
         id: row.id,
         tamanho,
-        estoque: estoque < 0 ?
+        estoque: estoque < 0 ? 0 : estoque,
+        preco: row.preco
+      });
+    }
+
+    const produtos = Object.values(grupos)
+      .filter(p => p.variacoes.length > 0)
+      .filter(p => p.image && p.image.trim() !== '')
+      .map(p => ({
+        ...p,
+        variacoes: [...p.variacoes].sort((a, b) => parseInt(a.tamanho) - parseInt(b.tamanho))
+      }));
+
+    return res.status(200).json({ produtos, fonte: 'supabase', total: produtos.length });
+
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
