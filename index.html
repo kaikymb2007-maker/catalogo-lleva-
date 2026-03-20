@@ -714,8 +714,19 @@ async function verificarCNPJ(){
       return;
     }
 
-    // Verifica senha no Supabase
+    // Verifica se campo senha já está visível (segunda etapa)
+    const campoSenha = document.getElementById('campoSenha');
     const senha = document.getElementById('loginSenha').value.trim();
+    if(campoSenha.style.display === 'none') {
+      // Primeira etapa: CNPJ encontrado, mostrar campo senha
+      campoSenha.style.display = 'block';
+      document.getElementById('btnVerificar').textContent = 'ENTRAR →';
+      document.getElementById('btnVerificar').classList.remove('btn-hidden');
+      return;
+    }
+
+    // Segunda etapa: verificar senha no Supabase
+    const senha2 = document.getElementById('loginSenha').value.trim();
     const supaRes = await fetch(`https://demspfxcneotrllfizwe.supabase.co/rest/v1/Catalogo_Clientes?CNPJ=eq.${cnpjLimpo}&select=Senha`, {
       headers: {
         'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlbXNwZnhjbmVvdHJsbGZpendlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDQ4MjU3MDAsImV4cCI6MjAyMDQwMTcwMH0.Jx_8jFBMHGEZSdMFKrJrYqhIExSHaJNQwqzGEt0_m2Y',
@@ -724,13 +735,13 @@ async function verificarCNPJ(){
     });
     const supaData = await supaRes.json();
     if(supaData.length > 0) {
-      if(!senha) {
+      if(!senha2) {
         document.getElementById('loginErr').innerHTML='Digite sua senha para continuar.';
         document.getElementById('loginErr').classList.add('show');
         document.getElementById('btnVerificar').classList.remove('btn-hidden');
         return;
       }
-      if(supaData[0].Senha !== senha) {
+      if(supaData[0].Senha !== senha2) {
         document.getElementById('loginErr').innerHTML='Senha incorreta. Tente novamente.';
         document.getElementById('loginErr').classList.add('show');
         document.getElementById('btnVerificar').classList.remove('btn-hidden');
