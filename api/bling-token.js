@@ -1,58 +1,69 @@
-// Auto-refresh token com persistência no Vercel KV
-// O refresh_token é atualizado a cada renovação, nunca expira
+const SUPABASE_URL = 'https://demspfxcneotrllfizwe.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
+// Cache em memória para evitar hits desnecessários no Supabase
 let memCache = { accessToken: null, expiresAt: 0 };
 
-async function salvarRefreshToken(refreshToken) {
-  // Salvar no Vercel KV se disponível, senão só em memória
-  try {
-    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      await fetch(`${process.env.KV_REST_API_URL}/set/bling_refresh_token/${encodeURIComponent(refreshToken)}`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}` }
-      });
-      console.log('Refresh token salvo no KV');
-    }
-  } catch(e) {
-    console.warn('KV não disponível, usando apenas env var:', e.message);
-  }
+async function lerTokenDoSupabase() {
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/bling_tokens?id=eq.1&select=*`,
+    { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+  );
+  if (!r.ok) throw new Error(`Supabase leitura token erro: ${r.status}`);
+  const rows = await r.json();
+  if (!rows?.length) throw new Error('Nenhum token encontrado na tabela bling_tokens.');
+  return rows[0];
 }
 
-async function lerRefreshToken() {
-  // Tentar ler do KV primeiro (mais atualizado), senão usa env var
-  try {
-    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      const res = await fetch(`${process.env.KV_REST_API_URL}/get/bling_refresh_token`, {
-        headers: { Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}` }
-      });
-      const data = await res.json();
-      if (data.result) {
-        console.log('Refresh token lido do KV');
-        return data.result;
-      }
+async function salvarTokenNoSupabase(accessToken, refreshToken, expiresAt) {
+  const r = await fetch(
+    `${SUPABASE_URL}/rest/v1/bling_tokens?id=eq.1`,
+    {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_at: expiresAt,
+        atualizado_em: new Date().toISOString()
+      })
     }
-  } catch(e) {
-    console.warn('KV não disponível, usando env var');
+  );
+  if (!r.ok) {
+    const err = await r.text();
+    throw new Error(`Supabase salvar token erro: ${err}`);
   }
-  return process.env.BLING_REFRESH_TOKEN;
 }
 
 export async function getBlingToken() {
-  // Token ainda válido (com 5min de margem)?
-  if (memCache.accessToken && Date.now() < memCache.expiresAt - 300000) {
+  // 1. Verifica cache em memória (margem de 10 min)
+  if (memCache.accessToken && Date.now() < memCache.expiresAt - 600000) {
     return memCache.accessToken;
   }
 
-  const clientId     = process.env.BLING_CLIENT_ID;
+  // 2. Busca token do Supabase
+  const row = await lerTokenDoSupabase();
+
+  // 3. Se ainda válido (margem de 10 min), usa direto
+  if (row.access_token && Date.now() < row.expires_at - 600000) {
+    memCache = { accessToken: row.access_token, expiresAt: row.expires_at };
+    return row.access_token;
+  }
+
+  // 4. Token expirado — faz refresh
+  console.log('Token Bling expirado, renovando...');
+
+  const clientId = process.env.BLING_CLIENT_ID;
   const clientSecret = process.env.BLING_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    if (process.env.BLING_TOKEN) return process.env.BLING_TOKEN;
-    throw new Error('Credenciais Bling não configuradas.');
+    throw new Error('BLING_CLIENT_ID ou BLING_CLIENT_SECRET não configurados.');
   }
-
-  const refreshToken = await lerRefreshToken();
-  if (!refreshToken) throw new Error('Refresh token não encontrado.');
 
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
@@ -64,28 +75,27 @@ export async function getBlingToken() {
     },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: refreshToken
+      refresh_token: row.refresh_token
     })
   });
 
   if (!res.ok) {
     const err = await res.text();
-    console.error('Erro ao renovar token Bling:', err);
-    if (process.env.BLING_TOKEN) return process.env.BLING_TOKEN;
-    throw new Error('Falha ao renovar token Bling. Gere um novo refresh_token no Bling.');
+    throw new Error(`Falha ao renovar token Bling: ${err}`);
   }
 
   const data = await res.json();
 
-  // Salvar novo access token em memória
-  memCache.accessToken = data.access_token;
-  memCache.expiresAt   = Date.now() + (data.expires_in * 1000);
+  const novoAccessToken = data.access_token;
+  const novoRefreshToken = data.refresh_token || row.refresh_token;
+  const novoExpiresAt = Date.now() + (data.expires_in * 1000);
 
-  // Salvar novo refresh_token para nunca expirar
-  if (data.refresh_token) {
-    await salvarRefreshToken(data.refresh_token);
-    console.log('Tokens renovados com sucesso!');
-  }
+  // 5. Salva no Supabase
+  await salvarTokenNoSupabase(novoAccessToken, novoRefreshToken, novoExpiresAt);
 
-  return memCache.accessToken;
+  // 6. Atualiza cache em memória
+  memCache = { accessToken: novoAccessToken, expiresAt: novoExpiresAt };
+
+  console.log('Token Bling renovado e salvo no Supabase com sucesso.');
+  return novoAccessToken;
 }
