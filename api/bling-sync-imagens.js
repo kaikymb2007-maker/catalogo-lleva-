@@ -43,4 +43,82 @@ export default async function handler(req, res) {
 
           const rBling = await fetch(
             `https://www.bling.com.br/Api/v3/produtos/${pai.id}`,
-            { headers
+            { headers }
+          );
+          const dBling = await rBling.json();
+          const linkBling = dBling.data?.midia?.imagens?.internas?.[0]?.link || '';
+
+          if (!linkBling) return;
+
+          const imgResponse = await fetch(linkBling);
+          if (!imgResponse.ok) return;
+
+          const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
+          const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+          const fileName = `${ref}.${ext}`;
+          const imageBuffer = await imgResponse.arrayBuffer();
+
+          const rUpload = await fetch(
+            `${SUPABASE_URL}/storage/v1/object/produtos_catalogo_teste/${fileName}`,
+            {
+              method: 'POST',
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Content-Type': contentType,
+                'x-upsert': 'true'
+              },
+              body: imageBuffer
+            }
+          );
+
+          if (!rUpload.ok) {
+            const err = await rUpload.text();
+            console.error(`Erro upload ${ref}:`, err);
+            erros++;
+            return;
+          }
+
+          const linkPermanente = `${SUPABASE_URL}/storage/v1/object/public/produtos_catalogo_teste/${fileName}`;
+
+          await fetch(
+            `${SUPABASE_URL}/rest/v1/imagens_produtos`,
+            {
+              method: 'POST',
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates'
+              },
+              body: JSON.stringify({
+                ref,
+                link: linkPermanente,
+                atualizado_em: new Date().toISOString()
+              })
+            }
+          );
+
+          salvos++;
+
+        } catch(e) {
+          console.error('Erro produto', pai.codigo, e.message);
+          erros++;
+        }
+      }));
+
+      if (i + BATCH < pais.length) await new Promise(r => setTimeout(r, 500));
+    }
+
+    return res.status(200).json({
+      ok: true,
+      salvos,
+      pulados,
+      erros,
+      total: pais.length
+    });
+
+  } catch(e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
