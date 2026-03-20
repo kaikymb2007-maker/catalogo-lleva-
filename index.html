@@ -372,6 +372,14 @@ input,button,textarea{font-family:var(--fonte)}
       <label>Bairro *</label>
       <input type="text" id="regBairro" placeholder="Ex: Centro">
     </div>
+    <div class="field">
+      <label>Senha *</label>
+      <input type="password" id="regSenha" placeholder="Crie uma senha">
+    </div>
+    <div class="field">
+      <label>Confirmar Senha *</label>
+      <input type="password" id="regSenhaConfirm" placeholder="Repita a senha">
+    </div>
 
     <div class="auth-alert err" id="regError" style="display:none"></div>
 
@@ -1045,10 +1053,23 @@ async function registrar() {
   const nome  = document.getElementById('regNome').value.trim();
   const whats = document.getElementById('regWhats').value.trim();
   const email = document.getElementById('regEmail').value.trim();
+  const senha = document.getElementById('regSenha').value.trim();
+  const senhaConfirm = document.getElementById('regSenhaConfirm').value.trim();
   const errEl = document.getElementById('regError');
   const btn   = document.getElementById('btnRegistrar');
 
   errEl.style.display = 'none';
+
+  if (!senha || senha.length < 6) {
+    errEl.textContent = 'A senha deve ter pelo menos 6 caracteres.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (senha !== senhaConfirm) {
+    errEl.textContent = 'As senhas não coincidem.';
+    errEl.style.display = 'block';
+    return;
+  }
 
   if (!validaCNPJ(cnpj.replace(/\D/g,""))) {
     errEl.textContent = 'CNPJ inválido. Verifique e tente novamente.';
@@ -1100,6 +1121,19 @@ async function registrar() {
     }
 
     const contatoId = data.data?.id || data.id || 0;
+
+    // Salva CNPJ e senha no Supabase
+    await fetch('https://demspfxcneotrllfizwe.supabase.co/rest/v1/Catalogo_Clientes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlbXNwZnhjbmVvdHJsbGZpendlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDQ4MjU3MDAsImV4cCI6MjAyMDQwMTcwMH0.Jx_8jFBMHGEZSdMFKrJrYqhIExSHaJNQwqzGEt0_m2Y',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlbXNwZnhjbmVvdHJsbGZpendlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDQ4MjU3MDAsImV4cCI6MjAyMDQwMTcwMH0.Jx_8jFBMHGEZSdMFKrJrYqhIExSHaJNQwqzGEt0_m2Y',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ CNPJ: cnpj.replace(/\D/g,''), Senha: senha, Nome: nome, EhAtivo: true, EhAdmin: false })
+    });
+
     comprador = {
       cnpj,
       nome,
