@@ -11,7 +11,6 @@ export default async function handler(req, res) {
     const token = await getBlingToken();
     const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
 
-    // Busca todos os produtos pai (sem traço no código)
     const rPais = await fetch(
       `${SUPABASE_URL}/rest/v1/produtos?select=id,codigo&situacao=eq.A&codigo=not.like.*-*`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
@@ -31,6 +30,17 @@ export default async function handler(req, res) {
           const ref = (pai.codigo || '').trim();
           if (!ref) return;
 
-          // Verifica se já tem imagem salva no Supabase Storage
           const rCheck = await fetch(
             `${SUPABASE_URL}/rest/v1/imagens_produtos?ref=eq.${ref}&select=ref,link`,
+            { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+          );
+          const existing = await rCheck.json();
+
+          if (existing?.length && existing[0].link?.includes('supabase')) {
+            pulados++;
+            return;
+          }
+
+          const rBling = await fetch(
+            `https://www.bling.com.br/Api/v3/produtos/${pai.id}`,
+            { headers
